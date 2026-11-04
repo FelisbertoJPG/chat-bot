@@ -1,0 +1,134 @@
+[
+  {
+    "categoria": "Visão geral",
+    "pergunta": "O que é o regulamento de assistência à saúde?",
+    "resposta_esperada": "É a Resolução nº 05, de 13 de abril de 2012, do Conselho Deliberativo do IPASEM. Regula a assistência à saúde dos segurados (servidores municipais de Novo Hamburgo), dependentes e pensionistas: assistência médica e odontológica, terapias complementares, exclusões, reembolso, inscrição de usuários, coparticipação e carência.",
+    "fontes": "Preâmbulo e Art. 1 (p. 1), estrutura do documento"
+  },
+  {
+    "categoria": "Visão geral",
+    "pergunta": "Em que parte do regulamento fala sobre reembolso?",
+    "resposta_esperada": "No Título II, Capítulo II (Do Reembolso de Despesas), Art. 53 a 55, na página 24.",
+    "fontes": "Art. 53 a 55 (p. 24)"
+  },
+  {
+    "categoria": "Direta",
+    "pergunta": "O plano cobre óculos de grau?",
+    "resposta_esperada": "Não. Próteses e órteses externas, como óculos, estão excluídas da cobertura.",
+    "fontes": "Art. 51, alínea h (p. 22)"
+  },
+  {
+    "categoria": "Direta",
+    "pergunta": "O IPASEM paga vacina?",
+    "resposta_esperada": "Não. Vacinas estão na lista de exclusões de cobertura.",
+    "fontes": "Art. 51, alínea v (p. 23)"
+  },
+  {
+    "categoria": "Direta",
+    "pergunta": "Quantas autorizações odontológicas minha família tem por mês?",
+    "resposta_esperada": "Três autorizações mensais por família (segurado e dependentes).",
+    "fontes": "Art. 40 (p. 16)"
+  },
+  {
+    "categoria": "Direta",
+    "pergunta": "Raio-x panorâmico no dentista tem coparticipação?",
+    "resposta_esperada": "Sim, coparticipação de 50% (vale também para tomografia).",
+    "fontes": "Art. 44, parágrafo único (p. 17)"
+  },
+  {
+    "categoria": "Regra que mudou",
+    "pergunta": "Quantas consultas de psiquiatria eu posso fazer?",
+    "resposta_esperada": "Doze consultas por ano, com direito a reconsulta. Versões antigas diziam duas por mês ou sem limite: se ele citar isso, a limpeza falhou.",
+    "fontes": "Art. 12, §5º (p. 6)"
+  },
+  {
+    "categoria": "Regra que mudou",
+    "pergunta": "Quantas vezes por ano posso consultar com o clínico geral?",
+    "resposta_esperada": "Seis consultas por ano, com direito a reconsulta. A versão antiga dizia sem limite na sede do IPASEM.",
+    "fontes": "Art. 12, §6º (p. 6)"
+  },
+  {
+    "categoria": "Regra que mudou",
+    "pergunta": "Tenho 62 anos. Tenho direito a quarto privativo na internação?",
+    "resposta_esperada": "Não automaticamente. A regra que dava quarto privativo para quem tem 60 anos ou mais foi revogada em 2022. Hoje o padrão é quarto semiprivativo (2 leitos), e o privativo só em casos especiais, com justificativa médica e parecer técnico.",
+    "fontes": "Art. 28, caput e §1º (p. 11)"
+  },
+  {
+    "categoria": "Exige raciocínio",
+    "pergunta": "Tomei posse há 6 meses. Já posso marcar uma consulta eletiva?",
+    "resposta_esperada": "Ainda não. A carência para atendimento eletivo é de 10 meses após a posse, então faltam cerca de 4 meses.",
+    "fontes": "Art. 63 (p. 28)"
+  },
+  {
+    "categoria": "Exige raciocínio",
+    "pergunta": "Tomei posse há 2 meses e tive uma emergência. O plano me atende?",
+    "resposta_esperada": "Sim. A carência de 10 meses não se aplica a casos de urgência ou emergência.",
+    "fontes": "Art. 63, §2º (p. 28)"
+  },
+  {
+    "categoria": "Exige raciocínio",
+    "pergunta": "Tenho 65 anos e vou ser internado. Posso ter acompanhante pago pelo plano?",
+    "resposta_esperada": "Sim. As diárias de acompanhante são liberadas para internação de menores de 12 anos ou maiores de 60 anos.",
+    "fontes": "Art. 28, §2º (p. 11)"
+  },
+  {
+    "categoria": "Exige raciocínio",
+    "pergunta": "Meu filho solteiro fez 21 anos. Ele pode continuar como dependente? Quanto custa?",
+    "resposta_esperada": "Sim, até completar 24 anos, pagando 2% da remuneração do segurado por mês (desconto em folha). O pedido deve ser feito em até 60 dias depois que ele completar 21, e nesse período ele fica sem cobertura.",
+    "fontes": "Art. 59-A e §3º (p. 26-27)"
+  },
+  {
+    "categoria": "Mais de um artigo",
+    "pergunta": "Paguei uma consulta particular numa urgência. Posso pedir reembolso? Até quando?",
+    "resposta_esperada": "Sim, se for comprovado que não dava para usar o serviço do IPASEM ou de um contratado. O pedido deve ser feito em até 60 dias após o atendimento, com as primeiras vias dos documentos.",
+    "fontes": "Art. 55, alínea a (p. 24) e Art. 53, parágrafo único (p. 24)"
+  },
+  {
+    "categoria": "Mais de um artigo",
+    "pergunta": "Quantos dias de internação psiquiátrica o plano cobre?",
+    "resposta_esperada": "Até 45 dias por ano, só em casos agudos ou com risco de vida. O que passar disso tem coparticipação de 50%.",
+    "fontes": "Art. 31 e parágrafo único (p. 12)"
+  },
+  {
+    "categoria": "Resolução complementar",
+    "pergunta": "O IPASEM cobre implante dentário? Quantos posso fazer?",
+    "resposta_esperada": "Sim, até 4 implantes por beneficiário, só com finalidade funcional (não estética) e com análise prévia da perícia odontológica, mediante laudo do profissional credenciado. O segurado paga 50% de coparticipação. Valor de referência atual: R$ 2.499,00 por implante (tabela 2024); o valor de R$ 2.000,00 da resolução de 2014 está desatualizado.",
+    "fontes": "Res. 09/2014, Art. 2º a 4º; Res. 33/2024, tabela odontológica, código 6300"
+  },
+  {
+    "categoria": "Tabela de procedimentos",
+    "pergunta": "Quantas sessões de psicologia por ano o plano cobre?",
+    "resposta_esperada": "30 sessões por ano (consulta eletiva de psicologia, código 50000470, R$ 68,00 por sessão pagos ao prestador). O Art. 50-B do regulamento diz que o limite de sessões das terapias complementares fica nas tabelas próprias.",
+    "fontes": "Tabela Res. 33/2024, p. 5; Art. 50-B (p. 20-21)"
+  },
+  {
+    "categoria": "Tabela de procedimentos",
+    "pergunta": "Vou fazer um tratamento de canal especial. Tenho que pagar alguma parte?",
+    "resposta_esperada": "Sim. Endodontia especial exige laudo do profissional credenciado e autorização prévia do perito odontológico do IPASEM, com 50% de coparticipação do segurado. Exemplo: 1 canal especial (código 3311) custa R$ 393,53, e o segurado paga cerca de R$ 196,77.",
+    "fontes": "Tabela Res. 33/2024, honorários odontológicos, p. 163"
+  },
+  {
+    "categoria": "Tabela de procedimentos",
+    "pergunta": "O IPASEM cobre cirurgia de catarata?",
+    "resposta_esperada": "Sim, a facectomia está na tabela. Ex.: facectomia com lente intraocular com facoemulsificação (código 30306027), 1.500 CH ≈ R$ 1.275,00 de honorários, e pacote por olho de R$ 3.212,60 (taxas, material e medicamentos, com lente até um limite). Valores pagos ao prestador.",
+    "fontes": "Tabela Res. 33/2024, p. 49 e p. 131"
+  },
+  {
+    "categoria": "Tabela de procedimentos",
+    "pergunta": "Quanto o IPASEM paga numa polissonografia?",
+    "resposta_esperada": "Polissonografia de noite inteira (código 40103528): R$ 840,00; com titulação de CPAP (40103544): R$ 1.004,00 (p. 102). O mesmo código aparece com R$ 470,00 na p. 107 (inconsistência da tabela, a confirmar). É o valor pago ao prestador; a tabela não indica coparticipação para esse exame. Não deve aplicar o Art. 22 (alta complexidade) sem base.",
+    "fontes": "Tabela Res. 33/2024, p. 102 e 107"
+  },
+  {
+    "categoria": "Fora do regulamento",
+    "pergunta": "Qual o valor da mensalidade do IPASEM?",
+    "resposta_esperada": "O regulamento não informa. Deve dizer que não encontrou essa informação, sem inventar valor.",
+    "fontes": "Nenhuma"
+  },
+  {
+    "categoria": "Fora do regulamento",
+    "pergunta": "Quais hospitais são credenciados em Novo Hamburgo?",
+    "resposta_esperada": "O regulamento não lista hospitais. Deve dizer que não encontrou, sem inventar nomes.",
+    "fontes": "Nenhuma"
+  }
+]

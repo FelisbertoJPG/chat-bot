@@ -1,0 +1,4 @@
+anthropic==2.4.0
+pypdf==6.21.4
+ollama==0.6.3
+flask==3.1.3

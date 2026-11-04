@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chatbot do Regulamento</title>
+<style>
+  :root {
+    --bg: #f6f6f4; --painel: #ffffff; --borda: #e3e2de; --texto: #1f1f1d; --suave: #6b6a66;
+    --destaque: #2f6f5e; --destaque-texto: #ffffff; --usuario: #e8f1ee; --gabarito: #fff7e0;
+    --gabarito-borda: #e9cf7a; --codigo: #f0efeb;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #161615; --painel: #1f1f1d; --borda: #33332f; --texto: #ecebe7; --suave: #9b9a95;
+      --destaque: #5fb39b; --destaque-texto: #0f1f1a; --usuario: #22302c; --gabarito: #2c2715;
+      --gabarito-borda: #6b5a22; --codigo: #262623;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; height: 100vh; display: flex; background: var(--bg); color: var(--texto);
+    font: 15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  aside {
+    width: 300px; flex-shrink: 0; border-right: 1px solid var(--borda); background: var(--painel);
+    overflow-y: auto; padding: 16px; display: none;
+  }
+  body.com-sugestoes aside { display: block; }
+  header { display: flex; align-items: center; gap: 12px; }
+  header .titulos { flex: 1; min-width: 0; }
+  #alternar {
+    flex-shrink: 0; padding: 6px 10px; border: 1px solid var(--borda); border-radius: 8px;
+    background: var(--bg); color: var(--texto); font: inherit; font-size: 13px; cursor: pointer;
+  }
+  #alternar:hover { border-color: var(--destaque); }
+  aside h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--suave); margin: 0 0 4px; }
+  aside p { font-size: 13px; color: var(--suave); margin: 0 0 16px; }
+  .categoria { font-size: 12px; font-weight: 600; color: var(--suave); margin: 16px 0 6px; }
+  .sugestao {
+    display: block; width: 100%; text-align: left; margin-bottom: 6px; padding: 8px 10px;
+    border: 1px solid var(--borda); border-radius: 8px; background: var(--bg); color: var(--texto);
+    font: inherit; font-size: 13px; cursor: pointer;
+  }
+  .sugestao:hover { border-color: var(--destaque); }
+  .sugestao.feita { opacity: .55; }
+  main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  header { padding: 14px 20px; border-bottom: 1px solid var(--borda); background: var(--painel); }
+  header h1 { font-size: 16px; margin: 0; }
+  header span { font-size: 12px; color: var(--suave); }
+  #conversa { flex: 1; overflow-y: auto; padding: 24px 20px; }
+  .msg { max-width: 760px; margin: 0 auto 20px; }
+  .msg.usuario .balao { background: var(--usuario); margin-left: auto; width: fit-content; max-width: 85%; }
+  .balao { padding: 12px 16px; border-radius: 12px; background: var(--painel); border: 1px solid var(--borda); }
+  .status { font-size: 13px; color: var(--suave); font-style: italic; }
+  .detalhes { margin-top: 8px; font-size: 13px; }
+  details { border: 1px solid var(--borda); border-radius: 8px; padding: 6px 10px; margin-top: 6px; background: var(--painel); }
+  summary { cursor: pointer; color: var(--suave); }
+  .fonte { border-top: 1px solid var(--borda); padding: 8px 0; }
+  .fonte:first-of-type { border-top: 0; }
+  .fonte b { color: var(--destaque); }
+  .fonte .pedaco { color: var(--suave); }
+  .fonte pre {
+    white-space: pre-wrap; font: 12px/1.5 ui-monospace, Consolas, monospace; background: var(--codigo);
+    padding: 8px; border-radius: 6px; margin: 6px 0 0;
+  }
+  .gabarito {
+    margin-top: 8px; padding: 10px 12px; border-radius: 8px; font-size: 13px;
+    background: var(--gabarito); border: 1px solid var(--gabarito-borda);
+  }
+  .metricas { font-size: 12px; color: var(--suave); margin-top: 6px; }
+  .vazio { max-width: 760px; margin: 60px auto; text-align: center; color: var(--suave); }
+  form { border-top: 1px solid var(--borda); background: var(--painel); padding: 12px 20px 16px; }
+  .entrada { max-width: 760px; margin: 0 auto; display: flex; gap: 8px; }
+  textarea {
+    flex: 1; resize: none; min-height: 46px; max-height: 160px; padding: 12px; border-radius: 10px;
+    border: 1px solid var(--borda); background: var(--bg); color: var(--texto); font: inherit;
+  }
+  textarea:focus { outline: 2px solid var(--destaque); border-color: transparent; }
+  button.enviar {
+    padding: 0 18px; border: 0; border-radius: 10px; background: var(--destaque); color: var(--destaque-texto);
+    font: inherit; font-weight: 600; cursor: pointer;
+  }
+  button.enviar:disabled { opacity: .5; cursor: default; }
+  .opcoes { max-width: 760px; margin: 8px auto 0; font-size: 13px; color: var(--suave); }
+  @media (max-width: 760px) {
+    body { flex-direction: column; }
+    aside { width: auto; max-height: 30vh; border-right: 0; border-bottom: 1px solid var(--borda); }
+    #conversa, form, header { padding-left: 16px; padding-right: 16px; }
+  }
+</style>
+</head>
+<body>
+<aside>
+  <h2>Perguntas de teste</h2>
+  <p>Clique para perguntar. Depois da resposta aparece o gabarito para você conferir.</p>
+  <div id="sugestoes"></div>
+</aside>
+
+<main>
+  <header>
+    <button id="alternar" type="button" aria-expanded="false">☰ Perguntas de teste</button>
+    <div class="titulos">
+      <h1>Chatbot do Regulamento de Assistência à Saúde · IPASEM</h1>
+      <span id="info">Teste local · carregando...</span>
+    </div>
+  </header>
+
+  <div id="conversa">
+    <div class="vazio" id="vazio">
+      Pergunte qualquer coisa sobre o regulamento.<br>
+      Cada pergunta é independente: o chatbot não lembra das anteriores.
+    </div>
+  </div>
+
+  <form id="form">
+    <div class="entrada">
+      <textarea id="pergunta" rows="1" placeholder="Ex.: o plano cobre óculos?"></textarea>
+      <button class="enviar" id="enviar" type="submit">Enviar</button>
+    </div>
+    <div class="opcoes">
+      <label><input type="checkbox" id="pensar"> Pensar antes de responder (mais preciso, bem mais lento)</label>
+    </div>
+  </form>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let ocupado = false;
+
+function escapar(texto) {
+  return texto.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+// Markdown mínimo: **negrito** e quebras de linha.
+function formatar(texto) {
+  return escapar(texto).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/\n/g, "<br>");
+}
+
+function rolarParaBaixo() {
+  const c = $("conversa");
+  c.scrollTop = c.scrollHeight;
+}
+
+async function carregarSugestoes() {
+  const dados = await (await fetch("/api/sugestoes")).json();
+  $("info").textContent = `Teste local · resposta: ${dados.modelo} · busca: qwen3-embedding:0.6b`;
+  let categoriaAtual = "";
+  for (const item of dados.perguntas) {
+    if (item.categoria !== categoriaAtual) {
+      categoriaAtual = item.categoria;
+      const titulo = document.createElement("div");
+      titulo.className = "categoria";
+      titulo.textContent = categoriaAtual;
+      $("sugestoes").appendChild(titulo);
+    }
+    const botao = document.createElement("button");
+    botao.className = "sugestao";
+    botao.textContent = item.pergunta;
+    botao.onclick = () => {
+      if (ocupado) return;
+      botao.classList.add("feita");
+      perguntar(item.pergunta, item);
+    };
+    $("sugestoes").appendChild(botao);
+  }
+}
+
+function adicionarMensagem(classe) {
+  $("vazio")?.remove();
+  const msg = document.createElement("div");
+  msg.className = `msg ${classe}`;
+  $("conversa").appendChild(msg);
+  return msg;
+}
+
+async function perguntar(pergunta, gabarito = null) {
+  ocupado = true;
+  $("enviar").disabled = true;
+
+  adicionarMensagem("usuario").innerHTML = `<div class="balao">${formatar(pergunta)}</div>`;
+  const msg = adicionarMensagem("assistente");
+  msg.innerHTML = `<div class="balao"><span class="status">Buscando artigos...</span><span class="texto"></span></div><div class="detalhes"></div>`;
+  const status = msg.querySelector(".status");
+  const areaTexto = msg.querySelector(".texto");
+  const detalhes = msg.querySelector(".detalhes");
+  rolarParaBaixo();
+
+  const inicio = Date.now();
+  const cronometro = setInterval(() => {
+    if (status.dataset.base) status.textContent = `${status.dataset.base} ${Math.round((Date.now() - inicio) / 1000)}s`;
+  }, 1000);
+
+  let resposta = "";
+  try {
+    const r = await fetch("/api/perguntar", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pergunta, pensar: $("pensar").checked }),
+    });
+    const leitor = r.body.getReader();
+    const decodificador = new TextDecoder();
+    let buffer = "";
+
+    while (true) {
+      const { done, value } = await leitor.read();
+      if (done) break;
+      buffer += decodificador.decode(value, { stream: true });
+      const linhas = buffer.split("\n");
+      buffer = linhas.pop();
+
+      for (const linha of linhas.filter(Boolean)) {
+        const ev = JSON.parse(linha);
+        if (ev.tipo === "fontes") {
+          status.dataset.base = "Gerando resposta...";
+          const itens = ev.fontes.map((f) => `
+            <div class="fonte">
+              <b>${escapar(f.id)}</b> (${escapar(f.paginas)}) · similaridade ${f.similaridade.toFixed(3)}<br>
+              <span class="pedaco">Trecho que casou: ${escapar(f.pedaco)}</span>
+              <details><summary>Ver artigo inteiro</summary><pre>${escapar(f.texto)}</pre></details>
+            </div>`).join("");
+          detalhes.insertAdjacentHTML("beforeend",
+            `<details><summary>Artigos enviados ao modelo: ${ev.fontes.map((f) => escapar(f.id)).join(", ")}</summary>${itens}</details>`);
+        } else if (ev.tipo === "ferramenta") {
+          status.dataset.base = "Consultou a tabela, gerando resposta...";
+          const termo = ev.argumentos.termo || JSON.stringify(ev.argumentos);
+          const itens = ev.resumo.map((l) => `<div class="fonte">${escapar(l)}</div>`).join("");
+          detalhes.insertAdjacentHTML("beforeend",
+            `<details><summary>🔎 Consultou a tabela por "${escapar(termo)}": ${ev.total} resultado(s)</summary>${itens || "<div class='fonte'>Nada encontrado.</div>"}</details>`);
+        } else if (ev.tipo === "pensando") {
+          status.dataset.base = "Pensando...";
+        } else if (ev.tipo === "texto") {
+          if (status.isConnected) status.remove();
+          resposta += ev.texto;
+          areaTexto.innerHTML = formatar(resposta);
+        } else if (ev.tipo === "fim") {
+          detalhes.insertAdjacentHTML("beforeend",
+            `<div class="metricas">${ev.tempo_total}s no total (busca ${ev.tempo_busca}s) · ${ev.consultas_tabela} consulta(s) à tabela · ${ev.tokens_por_segundo} tokens/s · raciocínio ${$("pensar").checked ? "ligado" : "desligado"}</div>`);
+        } else if (ev.tipo === "erro") {
+          throw new Error(ev.mensagem);
+        }
+        rolarParaBaixo();
+      }
+    }
+  } catch (erro) {
+    if (status.isConnected) status.remove();
+    areaTexto.innerHTML = `<span class="status">Erro: ${escapar(erro.message)}. O Ollama está aberto?</span>`;
+  }
+
+  clearInterval(cronometro);
+  if (gabarito) {
+    detalhes.insertAdjacentHTML("beforeend", `
+      <div class="gabarito"><b>Gabarito (${escapar(gabarito.categoria)})</b><br>
+      ${escapar(gabarito.resposta_esperada)}<br><i>Fonte: ${escapar(gabarito.fontes)}</i></div>`);
+  }
+  rolarParaBaixo();
+  ocupado = false;
+  $("enviar").disabled = false;
+  $("pergunta").focus();
+}
+
+$("form").onsubmit = (e) => {
+  e.preventDefault();
+  const pergunta = $("pergunta").value.trim();
+  if (!pergunta || ocupado) return;
+  $("pergunta").value = "";
+  perguntar(pergunta);
+};
+
+// Enter envia; Shift+Enter quebra linha.
+$("pergunta").addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    $("form").requestSubmit();
+  }
+});
+
+// Barra de perguntas de teste: recolhida por padrão.
+$("alternar").onclick = () => {
+  const aberta = document.body.classList.toggle("com-sugestoes");
+  $("alternar").setAttribute("aria-expanded", aberta);
+};
+
+carregarSugestoes();
+</script>
+</body>
+</html>

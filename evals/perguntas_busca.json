@@ -1,0 +1,15 @@
+[
+  {"pergunta": "Quantas consultas de psiquiatria eu tenho direito por ano?", "artigos_esperados": ["Art. 12"]},
+  {"pergunta": "O plano cobre óculos de grau?", "artigos_esperados": ["Art. 51"]},
+  {"pergunta": "Acabei de tomar posse. Quanto tempo de carência preciso cumprir?", "artigos_esperados": ["Art. 63"]},
+  {"pergunta": "Posso ficar em quarto privativo quando for internado?", "artigos_esperados": ["Art. 28"]},
+  {"pergunta": "Até quando posso pedir reembolso de uma consulta que paguei?", "artigos_esperados": ["Art. 53"]},
+  {"pergunta": "Meu filho tem 22 anos e é solteiro. Ele pode continuar como meu dependente?", "artigos_esperados": ["Art. 59-A"]},
+  {"pergunta": "Minha mãe não consegue sair de casa. Ela pode fazer fisioterapia em casa?", "artigos_esperados": ["Art. 50-B", "Art. 21"]},
+  {"pergunta": "O que conta como reconsulta?", "artigos_esperados": ["Art. 12-A"]},
+  {"pergunta": "O IPASEM paga vacina?", "artigos_esperados": ["Art. 51"]},
+  {"pergunta": "Raio-x panorâmico no dentista tem coparticipação?", "artigos_esperados": ["Art. 44"]},
+  {"pergunta": "oq é o regulamento de aasistencia a saude?", "artigos_esperados": ["Ficha do regulamento"]},
+  {"pergunta": "Em que parte do regulamento fala sobre reembolso?", "artigos_esperados": ["Ficha do regulamento", "Art. 53", "Art. 55"]},
+  {"pergunta": "O IPASEM cobre implante dentário? Quantos posso fazer?", "artigos_esperados": ["Res. 09/2014 (implante dentário)"]}
+]

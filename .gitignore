@@ -1,0 +1,25 @@
+# Ambiente Python
+.venv/
+__pycache__/
+*.pyc
+
+# Segredos
+.env
+
+# Arquivos do assistente de código (uso local, não vão para o repositório)
+CLAUDE.md
+.claude/
+
+# Conversa em que o projeto foi construído (tem caminhos e dados da máquina)
+.conversa/
+
+# Rascunhos de mensagem de commit (revisados antes de virar commit)
+.commits/
+
+# PDFs originais: são públicos no site do IPASEM e só servem para regerar a pasta dados/
+docs/fontes/*.pdf
+
+# Sistema
+Thumbs.db
+desktop.ini
+.DS_Store
