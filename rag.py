@@ -37,6 +37,13 @@ ARTIGOS_NO_PROMPT = 4
 MAX_CONSULTAS = 3  # limite de chamadas de ferramenta por pergunta
 FERRAMENTAS = {"consultar_tabela": consultar_tabela}
 
+# Janela de contexto igual nas duas etapas: se o num_ctx muda entre uma chamada e outra, o Ollama
+# recarrega o modelo (medido: ~3,5 s a cada troca, 2 trocas por pergunta). 16384 cabe 4 artigos +
+# resultado da tabela + raciocínio.
+JANELA_CONTEXTO = 16384
+# Quanto tempo o modelo fica na memória depois da última pergunta (o padrão do Ollama é 5 min).
+MANTER_CARREGADO = "60m"
+
 SYSTEM_DECISAO = """Você decide se é preciso consultar a tabela de procedimentos do IPASEM \
 para responder a uma dúvida de beneficiário. A tabela tem procedimentos, exames, cirurgias, \
 tratamentos, materiais e pacotes, com código, valor e notas (por exemplo, coparticipação).
@@ -166,9 +173,9 @@ def responder(pergunta: str, pensar: bool = False) -> Iterator[dict]:
     while len(consultas) < MAX_CONSULTAS:
         decisao = ollama.chat(
             model=MODELO_RESPOSTA, messages=mensagens, tools=list(FERRAMENTAS.values()),
-            think=False,
+            think=False, keep_alive=MANTER_CARREGADO,
             # Se não for chamar ferramenta, não precisa escrever nada longo.
-            options={"num_ctx": 8192, "num_predict": 128},
+            options={"num_ctx": JANELA_CONTEXTO, "num_predict": 128},
         )
         chamadas = decisao.message.tool_calls or []
         if not chamadas:
@@ -200,8 +207,8 @@ def responder(pergunta: str, pensar: bool = False) -> Iterator[dict]:
         ],
         stream=True,
         think=pensar,
-        # 4 artigos + resultado da tabela + raciocínio precisam de uma janela maior.
-        options={"num_ctx": 16384},
+        keep_alive=MANTER_CARREGADO,
+        options={"num_ctx": JANELA_CONTEXTO},
     ):
         if parte.message.thinking and not avisou_pensando:
             avisou_pensando = True

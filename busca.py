@@ -103,7 +103,8 @@ def buscar(pergunta: str, k: int = 4, usar_instrucao: bool = True) -> list[dict]
     """Devolve os k artigos mais parecidos com a pergunta, do mais para o menos parecido."""
     indice = carregar_indice()
     consulta = (INSTRUCAO + pergunta) if usar_instrucao else pergunta
-    vetor = normalizar(ollama.embed(model=indice["modelo"], input=consulta)["embeddings"][0])
+    # keep_alive: o modelo de embedding fica na memória junto com o de resposta (padrão: 5 min).
+    vetor = normalizar(ollama.embed(model=indice["modelo"], input=consulta, keep_alive="60m")["embeddings"][0])
 
     # Nota de cada artigo = melhor nota entre os seus pedaços.
     melhor: dict[str, tuple[float, str]] = {}
