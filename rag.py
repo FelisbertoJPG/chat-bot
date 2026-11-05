@@ -36,7 +36,7 @@ import ollama
 import memoria
 from busca import ARQUIVO_INDICE, buscar
 from tabela import ARQUIVO as ARQUIVO_TABELA
-from tabela import consultar_tabela
+from tabela import FONTE_CITACAO, VIGENCIA, consultar_tabela
 
 MODELO_RESPOSTA = "qwen3.5:4b"
 ARTIGOS_NO_PROMPT = 4
@@ -62,11 +62,12 @@ específico, ou perguntar valor, preço, custo, código ou quanto se paga.
 - Se a pergunta for só sobre regras (carência, limite de consultas, dependentes, reembolso, \
 internação), não chame nada e responda apenas: SEM_CONSULTA"""
 
-SYSTEM = """Você tira dúvidas de beneficiários do plano de saúde do IPASEM (Novo Hamburgo).
+SYSTEM = f"""Você tira dúvidas de beneficiários do plano de saúde do IPASEM (Novo Hamburgo).
 
 Você tem duas fontes, que vêm junto com a pergunta:
 1. Artigos do regulamento: trazem regras, mas não valores nem códigos de procedimentos.
-2. Resultado da consulta à tabela única de 2024 (quando houver): código, valor e notas.
+2. Resultado da consulta à tabela única de procedimentos, com valores vigentes desde \
+{VIGENCIA} (quando houver): código, valor e notas.
 
 Regras:
 - Use apenas o que está nos artigos e no resultado da tabela. Não use conhecimento geral \
@@ -92,10 +93,11 @@ Tabela de procedimentos:
 R$ 1.249,50).
 - Valores em CH: informe o CH e o valor estimado em reais que vem no resultado.
 - Deixe claro que o valor é o que o IPASEM paga ao prestador, e não o que a pessoa paga, a \
-menos que uma nota fale em coparticipação. Avise que a tabela é atualizada todo ano no site.
+menos que uma nota fale em coparticipação. Informe que são os valores vigentes desde \
+{VIGENCIA} e que a tabela é atualizada todo ano.
 - Estar na tabela não garante cobertura: as exclusões do Art. 51 e as regras do regulamento \
 continuam valendo.
-- Cite a tabela como (Tabela Res. 33/2024, código X, p. Y)."""
+- Cite a tabela como ({FONTE_CITACAO}, código X, p. Y)."""
 
 
 def formatar_paginas(trecho: dict) -> str:
@@ -126,7 +128,8 @@ def reais(valor: float) -> str:
 def resultado_em_texto(termo: str, resultado: dict) -> str:
     """Resultado da tabela em texto corrido para o modelo de resposta.
     O modelo de 4B lia mal o JSON (dizia que um item não estava lá quando estava)."""
-    linhas = [f"Resultado da consulta à tabela única de 2024 (termo pesquisado: {termo}):"]
+    linhas = [f"Resultado da consulta à tabela única ({FONTE_CITACAO}, valores vigentes desde "
+              f"{VIGENCIA}; termo pesquisado: {termo}):"]
     if not resultado.get("resultados") and not resultado.get("pacotes"):
         linhas.append("Nenhum item encontrado na tabela.")
     for r in resultado.get("resultados", []):

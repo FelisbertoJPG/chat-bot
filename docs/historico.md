@@ -10,6 +10,7 @@ O resumo está no [README](../README.md).
 | v0 | Claude via API: PDF inteiro no contexto, citações nativas com página, cache do documento | código pronto (`claude_v0.py`), não usado na versão local |
 | v1 | RAG 100% local (Ollama): trechos por artigo, embeddings, busca, resposta com modelo pequeno | feito |
 | v1.1 | Resoluções complementares e tabela única de 2024 como ferramenta (tool calling) | feito |
+| tabela 2025 | Fonte da tabela passa a ser a OS 01/2025: citação com data de vigência e páginas do documento oficial | feito |
 | evals | Perguntas com gabarito validado por especialistas, script que mede os acertos | em andamento |
 
 ## 1. Escolha do modelo local
@@ -110,7 +111,29 @@ Limites que continuam (modelo de 4B): às vezes liga artigos sem relação (ex.:
 de alta complexidade, à polissonografia) e inventa pedidos estranhos.
 
 Ponto da tabela a validar: o código 40103528 (polissonografia) aparece com dois valores
-(R$ 840,00 na p. 102 e R$ 470,00 na p. 107).
+(R$ 840,00 na p. 103 e R$ 470,00 na p. 108 da OS 01/2025; p. 102 e 107 no PDF da Res. 33/2024).
+
+### Tabela atualizada pela Ordem de Serviço nº 01/2025
+
+O Art. 3º da Res. 33/2024 manda atualizar a tabela por ordem de serviço. A de 2025 é a OS
+IPASEM nº 01/2025 (18/11/2025, vigente desde 01/11/2025), que republica o Anexo I inteiro.
+
+Comparando com o PDF da Res. 33/2024 baixado do site, a surpresa: ele **já tinha o anexo de
+2025**. As seções dizem "2025", os dois arquivos foram gerados no mesmo dia (16/12/2025) e as 162
+páginas de tabela são idênticas: 4.606 itens, 0 valores diferentes, CH a R$ 0,85 nos dois. O site
+colou o anexo novo dentro da resolução antiga.
+
+Os valores estavam certos; a citação não. O chatbot dizia "tabela única de 2024" e citava páginas
+de um documento que não é o ato que fixou os valores. O que mudou:
+
+- A fonte passa a ser o PDF da OS (`docs/fontes/tabela_unica_os_01_2025.pdf`). A OS ocupa as
+  p. 1-2, então cada item fica uma página à frente (implante: p. 164 -> p. 165).
+- Fonte, citação e data de vigência ficam em constantes no `tabela.py` (`FONTE`,
+  `FONTE_CITACAO`, `VIGENCIA`) e chegam ao aviso, ao prompt e ao resultado da ferramenta. Na
+  próxima ordem de serviço, troca-se num lugar só.
+- O chatbot informa "valores vigentes desde 01/11/2025" em vez de só avisar que a tabela muda.
+- Conferido depois de regerar: só a página mudou nos 4.606 itens; nos trechos, só a nota de
+  vigência do implante; busca igual (12/13 e 13/13).
 
 ## v0: Claude via API (`claude_v0.py`)
 

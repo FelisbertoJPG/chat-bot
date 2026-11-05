@@ -17,7 +17,8 @@ nenhum dado sai do computador.
 O regulamento de assistência à saúde tem 29 páginas e é uma versão compilada: a redação de 2012
 convive com 19 resoluções de alteração (de 2012 a 2023), lado a lado no mesmo PDF. A regra de consultas de
 psiquiatria, por exemplo, aparece em três versões na mesma página. Valores e códigos de
-procedimentos ficam em outra resolução, uma tabela de 164 páginas.
+procedimentos ficam em outra resolução, uma tabela de 164 páginas republicada todo ano por
+ordem de serviço.
 
 Responder "quantas consultas de psiquiatria eu tenho?" ou "quanto pago num implante dentário?"
 exige saber qual versão vale e cruzar documentos diferentes.
@@ -34,7 +35,7 @@ flowchart LR
         PDF["Regulamento compilado<br/>29 páginas"] --> V["Limpeza e vigência<br/>95 itens revogados<br/>ou substituídos"]
         V --> A["71 artigos + ficha<br/>+ resoluções"]
         A --> E["Embeddings<br/>237 pedaços"]
-        T0["Tabela única 2024<br/>164 páginas"] --> T1["4.606 itens<br/>código, valor, notas"]
+        T0["Tabela única<br/>OS 01/2025"] --> T1["4.606 itens<br/>código, valor, notas"]
     end
     subgraph pergunta["A cada pergunta"]
         P["Pergunta"] --> B["Busca semântica<br/>4 artigos"]
@@ -101,8 +102,9 @@ O passo a passo de cada etapa está no [diário de desenvolvimento](docs/histori
   relação. Com o modo de raciocínio ligado acerta mais, mas leva minutos na CPU.
 - **O gabarito ainda não foi validado por especialistas.** As perguntas de teste foram escritas
   por quem já conhecia o documento.
-- **Tabela pode estar desatualizada.** Os valores são reajustados todo ano no site do IPASEM sem
-  nova resolução. O chatbot avisa isso.
+- **Tabela pode estar desatualizada.** Os valores são reajustados todo ano por ordem de serviço
+  (Art. 3º da Res. 33/2024). A versão em uso é a da OS nº 01/2025, vigente desde 01/11/2025: o
+  chatbot informa essa data e avisa que pode haver valores mais novos.
 - **Cada pergunta é independente.** O chat não lembra das anteriores.
 
 ## Próximos passos
@@ -130,7 +132,7 @@ regerar tudo a partir dos documentos originais (públicos no site do IPASEM), sa
 ```powershell
 .\.venv\Scripts\python.exe preparar_documento.py docs\fontes\regulamento.pdf
 .\.venv\Scripts\python.exe busca.py indexar
-.\.venv\Scripts\python.exe tabela.py preparar docs\fontes\tabela_unica_2024.pdf
+.\.venv\Scripts\python.exe tabela.py preparar docs\fontes\tabela_unica_os_01_2025.pdf
 ```
 
 Outros comandos:
@@ -150,7 +152,7 @@ Outros comandos:
 |---|---|
 | `preparar_documento.py` | Lê o PDF, aplica as regras de vigência e gera um trecho por artigo + a ficha |
 | `busca.py` | Embeddings e busca por significado |
-| `tabela.py` | Extrai a tabela única de 2024 e expõe a ferramenta `consultar_tabela` |
+| `tabela.py` | Extrai a tabela única (OS 01/2025) e expõe a ferramenta `consultar_tabela` |
 | `rag.py` | Orquestra busca, decisão (tool calling) e resposta, em streaming |
 | `memoria.py`, `memoria.md` | Respostas validadas por uma pessoa e cache das respostas já geradas |
 | `app.py`, `web/index.html` | Servidor local e interface de chat |

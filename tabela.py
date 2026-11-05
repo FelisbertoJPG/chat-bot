@@ -1,11 +1,16 @@
-"""Tabela única de procedimentos (Resolução nº 33/2024): extração e consulta.
+"""Tabela única de procedimentos (Anexo I da Resolução nº 33/2024): extração e consulta.
 
 A tabela não entra na busca por significado (RAG). Preço e código precisam vir exatos,
 então ela vira dados estruturados, e o modelo consulta por uma ferramenta
 (tool calling): ele decide quando chamar e com qual termo.
 
+Os valores são atualizados todo ano por Ordem de Serviço (Art. 3º da Res. 33/2024), que
+republica o Anexo I inteiro. A versão em uso é a da OS nº 01/2025. Na próxima atualização:
+trocar FONTE, FONTE_CITACAO e VIGENCIA, conferir as páginas em SECOES pelo sumário e preparar
+de novo.
+
 Preparar (uma vez):
-    python tabela.py preparar docs/fontes/tabela_unica_2024.pdf
+    python tabela.py preparar docs/fontes/tabela_unica_os_01_2025.pdf
 
 Consultar no terminal:
     python tabela.py "implante dentario"
@@ -22,23 +27,29 @@ from pypdf import PdfReader
 
 ARQUIVO = Path(__file__).parent / "dados" / "tabela_procedimentos.json"
 
-# Seções do Anexo I, pelo sumário da p. 2 (páginas do PDF).
+# De onde vêm os valores (vai no aviso, no prompt e na citação da resposta).
+FONTE = "Anexo I da Resolução nº 33/2024, atualizado pela Ordem de Serviço IPASEM nº 01/2025"
+FONTE_CITACAO = "Tabela única, OS 01/2025"
+VIGENCIA = "01/11/2025"
+
+# Seções do Anexo I, pelo sumário da p. 3 (páginas do PDF da OS 01/2025: a OS ocupa as
+# p. 1-2, então cada seção está uma página à frente do PDF da Res. 33/2024).
 # "linhas": dá para extrair código + valor; "texto": layout livre, vira bloco de texto.
 SECOES = [
-    {"nome": "Pacotes de hemodinâmica", "paginas": (3, 4), "tipo": "texto"},
-    {"nome": "Procedimentos médicos (honorários)", "paginas": (5, 91), "tipo": "linhas", "unidade": "CH"},
-    {"nome": "Exames diversos", "paginas": (92, 130), "tipo": "linhas", "unidade": "R$"},
-    {"nome": "Pacotes diversos (partos, hemoterapia, bariátrica, oftalmologia...)", "paginas": (131, 131), "tipo": "texto"},
-    {"nome": "Honorários de hemodinâmica, cardiologia e radiologia intervencionista", "paginas": (132, 137), "tipo": "texto"},
-    {"nome": "Materiais, medicamentos e dietas hospitalares", "paginas": (138, 161), "tipo": "linhas", "unidade": "R$"},
-    {"nome": "Honorários odontológicos", "paginas": (162, 164), "tipo": "linhas", "unidade": "R$"},
+    {"nome": "Pacotes de hemodinâmica", "paginas": (4, 5), "tipo": "texto"},
+    {"nome": "Procedimentos médicos (honorários)", "paginas": (6, 92), "tipo": "linhas", "unidade": "CH"},
+    {"nome": "Exames diversos", "paginas": (93, 131), "tipo": "linhas", "unidade": "R$"},
+    {"nome": "Pacotes diversos (partos, hemoterapia, bariátrica, oftalmologia...)", "paginas": (132, 132), "tipo": "texto"},
+    {"nome": "Honorários de hemodinâmica, cardiologia e radiologia intervencionista", "paginas": (133, 138), "tipo": "texto"},
+    {"nome": "Materiais, medicamentos e dietas hospitalares", "paginas": (139, 162), "tipo": "linhas", "unidade": "R$"},
+    {"nome": "Honorários odontológicos", "paginas": (163, 165), "tipo": "linhas", "unidade": "R$"},
 ]
 
 AVISO = (
-    "Valores da tabela única do IPASEM (Resolução nº 33/2024): é o que o IPASEM paga ao "
-    "prestador, não o que o beneficiário paga. A coparticipação só aparece quando há nota "
-    "dizendo isso. A tabela é atualizada todo ano no site do IPASEM (Art. 3º da resolução), "
-    "então os valores podem ter mudado."
+    f"Valores da tabela única do IPASEM ({FONTE}), vigentes desde {VIGENCIA}: é o que o IPASEM "
+    "paga ao prestador, não o que o beneficiário paga. A coparticipação só aparece quando há nota "
+    "dizendo isso. A tabela é atualizada todo ano por ordem de serviço (Art. 3º da Res. 33/2024): "
+    "confira no site do IPASEM se já há valores mais novos."
 )
 
 RE_CODIGO = re.compile(r"^(\d{3,8})(?:\s+(.+))?$")  # código, às vezes sozinho na linha
@@ -149,7 +160,8 @@ def extrair_linhas(leitor: PdfReader, secao: dict) -> tuple[list[dict], dict[str
 def preparar(caminho_pdf: Path) -> None:
     leitor = PdfReader(caminho_pdf)
     valor_ch = None
-    if m := RE_VALOR_CH.search(leitor.pages[4].extract_text() or ""):
+    # O valor da CH vem escrito no alto dos honorários médicos (p. 6 na OS 01/2025).
+    if m := RE_VALOR_CH.search(leitor.pages[SECOES[1]["paginas"][0] - 1].extract_text() or ""):
         valor_ch = numero(m.group(1))
 
     itens, notas, blocos = [], {}, []
@@ -164,7 +176,7 @@ def preparar(caminho_pdf: Path) -> None:
                 texto = re.sub(r"[ \t]+", " ", "\n".join(linhas_da_pagina(leitor, n)))
                 blocos.append({"secao": secao["nome"], "pagina": n, "texto": texto})
 
-    dados = {"fonte": "Resolução nº 33/2024, Anexo I", "valor_ch_reais": valor_ch,
+    dados = {"fonte": FONTE, "vigencia": VIGENCIA, "valor_ch_reais": valor_ch,
              "itens": itens, "notas": notas, "blocos": blocos}
     ARQUIVO.parent.mkdir(exist_ok=True)
     ARQUIVO.write_text(json.dumps(dados, ensure_ascii=False, indent=1), encoding="utf-8")

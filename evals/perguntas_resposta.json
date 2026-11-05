@@ -93,31 +93,31 @@
     "categoria": "Resolução complementar",
     "pergunta": "O IPASEM cobre implante dentário? Quantos posso fazer?",
     "resposta_esperada": "Sim, até 4 implantes por beneficiário, só com finalidade funcional (não estética) e com análise prévia da perícia odontológica, mediante laudo do profissional credenciado. O segurado paga 50% de coparticipação. Valor de referência atual: R$ 2.499,00 por implante (tabela 2024); o valor de R$ 2.000,00 da resolução de 2014 está desatualizado.",
-    "fontes": "Res. 09/2014, Art. 2º a 4º; Res. 33/2024, tabela odontológica, código 6300"
+    "fontes": "Res. 09/2014, Art. 2º a 4º; Tabela única (OS 01/2025), honorários odontológicos, código 6300"
   },
   {
     "categoria": "Tabela de procedimentos",
     "pergunta": "Quantas sessões de psicologia por ano o plano cobre?",
     "resposta_esperada": "30 sessões por ano (consulta eletiva de psicologia, código 50000470, R$ 68,00 por sessão pagos ao prestador). O Art. 50-B do regulamento diz que o limite de sessões das terapias complementares fica nas tabelas próprias.",
-    "fontes": "Tabela Res. 33/2024, p. 5; Art. 50-B (p. 20-21)"
+    "fontes": "Tabela única (OS 01/2025), p. 6; Art. 50-B (p. 20-21)"
   },
   {
     "categoria": "Tabela de procedimentos",
     "pergunta": "Vou fazer um tratamento de canal especial. Tenho que pagar alguma parte?",
     "resposta_esperada": "Sim. Endodontia especial exige laudo do profissional credenciado e autorização prévia do perito odontológico do IPASEM, com 50% de coparticipação do segurado. Exemplo: 1 canal especial (código 3311) custa R$ 393,53, e o segurado paga cerca de R$ 196,77.",
-    "fontes": "Tabela Res. 33/2024, honorários odontológicos, p. 163"
+    "fontes": "Tabela única (OS 01/2025), honorários odontológicos, p. 164"
   },
   {
     "categoria": "Tabela de procedimentos",
     "pergunta": "O IPASEM cobre cirurgia de catarata?",
     "resposta_esperada": "Sim, a facectomia está na tabela. Ex.: facectomia com lente intraocular com facoemulsificação (código 30306027), 1.500 CH ≈ R$ 1.275,00 de honorários, e pacote por olho de R$ 3.212,60 (taxas, material e medicamentos, com lente até um limite). Valores pagos ao prestador.",
-    "fontes": "Tabela Res. 33/2024, p. 49 e p. 131"
+    "fontes": "Tabela única (OS 01/2025), p. 50 e p. 132"
   },
   {
     "categoria": "Tabela de procedimentos",
     "pergunta": "Quanto o IPASEM paga numa polissonografia?",
-    "resposta_esperada": "Polissonografia de noite inteira (código 40103528): R$ 840,00; com titulação de CPAP (40103544): R$ 1.004,00 (p. 102). O mesmo código aparece com R$ 470,00 na p. 107 (inconsistência da tabela, a confirmar). É o valor pago ao prestador; a tabela não indica coparticipação para esse exame. Não deve aplicar o Art. 22 (alta complexidade) sem base.",
-    "fontes": "Tabela Res. 33/2024, p. 102 e 107"
+    "resposta_esperada": "Polissonografia de noite inteira (código 40103528): R$ 840,00; com titulação de CPAP (40103544): R$ 1.004,00 (p. 103). O mesmo código aparece com R$ 470,00 na p. 108 (inconsistência da tabela, a confirmar). É o valor pago ao prestador; a tabela não indica coparticipação para esse exame. Não deve aplicar o Art. 22 (alta complexidade) sem base.",
+    "fontes": "Tabela única (OS 01/2025), p. 103 e 108"
   },
   {
     "categoria": "Fora do regulamento",

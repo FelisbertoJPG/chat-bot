@@ -35,7 +35,8 @@ marcados como "substituída (revogação genérica)" e as resoluções de implan
 
 | Arquivo | Resolução | Assunto | Texto | Situação |
 |---|---|---|---|---|
-| 40.pdf | 33/2024 | Tabela única de procedimentos e honorários (164 p.); revoga resoluções anteriores | sim | **Vigente** desde 01/10/2024. Art. 3: a tabela é atualizada todo ano no site, sem nova resolução |
+| 40.pdf | 33/2024 | Tabela única de procedimentos e honorários (164 p.); revoga resoluções anteriores | sim | **Vigente** desde 01/10/2024. Art. 3: o Anexo I (a tabela) é atualizado todo ano por ordem de serviço, sem nova resolução |
+| site (nov/2025) | OS 01/2025 | Ordem de Serviço que atualiza o Anexo I da Res. 33/2024 para 2025 (165 p.) | sim | **Vigente** desde 01/11/2025. É a fonte da tabela do chatbot (`tabela_unica_os_01_2025.pdf`) |
 
 ### Regras de cobertura vigentes (implante dentário)
 
