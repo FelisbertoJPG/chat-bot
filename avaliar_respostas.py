@@ -16,7 +16,9 @@ Uso:
     python avaliar_respostas.py                     todas as perguntas (~20 min nesta máquina)
     python avaliar_respostas.py --so 7,8,20         só algumas (números do gabarito, a partir de 1)
     python avaliar_respostas.py --pensar            com raciocínio (bem mais lento)
-    python avaliar_respostas.py --rotulo sem-ficha  nome extra nos arquivos de resultado    python avaliar_respostas.py --comparar A.json B.json   compara duas rodadas
+    python avaliar_respostas.py --rotulo sem-ficha  nome extra nos arquivos de resultado
+    python avaliar_respostas.py --arquivo evals/perguntas_rede.json   outro conjunto (a rede
+                                                    credenciada: só roda com o prestadores.json)    python avaliar_respostas.py --comparar A.json B.json   compara duas rodadas
     python avaliar_respostas.py --recorrigir A.json        aplica os critérios atuais a uma rodada
                                                            salva (sem rodar o modelo de novo)
 """
@@ -38,10 +40,48 @@ def sem_acento(texto: str) -> str:
     return unicodedata.normalize("NFKD", texto).encode("ascii", "ignore").decode().lower()
 
 
-def corrigir(resposta: str, criterios: dict, consultou_tabela: bool) -> dict:
+RE_TELEFONE = re.compile(r"\(?\b\d{2}\)?\s?\d{4,5}[-\s]?\d{4}\b")
+
+
+def telefones_da_rede() -> set[str]:
+    import rede
+
+    dados = rede.carregar() or {"linhas": []}
+    return {re.sub(r"\D", "", t) for r in dados["linhas"]
+            for t in (r["telefone_coml1a"], r["telefone_coml1b"], r["telefone_cel"]) if t}
+
+
+# Cidades que o modelo poderia "lembrar" sem estarem no resultado (as da rede + vizinhas grandes).
+CIDADES_RS = ["novo hamburgo", "sao leopoldo", "campo bom", "porto alegre", "esteio", "estancia velha",
+              "canoas", "ivoti", "dois irmaos", "portao", "pelotas", "cachoeirinha", "sapucaia do sul",
+              "tramandai", "gravatai", "alvorada", "santo antonio da patrulha", "imbe", "montenegro",
+              "caxias do sul", "gramado", "canela", "santa maria", "passo fundo", "santa cruz do sul",
+              "lajeado", "bento goncalves", "rio grande", "viamao", "taquara", "parobe", "sapiranga"]
+
+
+def cidades_inventadas(resposta: str, pergunta: str, args_rede: list[dict]) -> list[str]:
+    """Cidades citadas que não vieram da ferramenta nem da pergunta."""
+    import rede
+
+    permitidas = {c for c in CIDADES_RS if c in sem_acento(pergunta)}
+    for args in args_rede:
+        permitidas |= {rede.normalizar(c) for c in rede.consultar_rede(**args).get("por_cidade", {})}
+    texto = sem_acento(resposta)
+    return [c for c in CIDADES_RS if re.search(rf"\b{c}\b", texto) and c not in permitidas]
+
+
+def corrigir(resposta: str, criterios: dict, consultou_tabela: bool, ferramentas: list[str] = (),
+             pergunta: str = "", args_rede: list[dict] = ()) -> dict:
     texto = sem_acento(resposta).strip()
     faltou = [p for p in criterios["deve_ter"] if not re.search(p, texto)]
     proibido = [p for p in criterios["nao_pode_ter"] if re.search(p, texto)]
+    if criterios.get("telefones_reais"):
+        # Todo telefone citado precisa existir no arquivo da rede: pega prestador inventado.
+        reais = telefones_da_rede()
+        proibido += [f"telefone inventado: {t}" for t in RE_TELEFONE.findall(resposta)
+                     if re.sub(r"\D", "", t) not in reais]
+        # Toda cidade citada precisa ter vindo da ferramenta ou da pergunta.
+        proibido += [f"cidade inventada: {c}" for c in cidades_inventadas(resposta, pergunta, args_rede)]
     total = len(criterios["deve_ter"])
     if not faltou and not proibido:
         nota = "OK"
@@ -49,9 +89,14 @@ def corrigir(resposta: str, criterios: dict, consultou_tabela: bool) -> dict:
         nota = "PARCIAL"
     else:
         nota = "ERRO"
-    esperado = criterios.get("usa_tabela")
+    # Decisão das ferramentas: só confere o que o critério diz (None = tanto faz).
+    checagens = []
+    if criterios.get("usa_tabela") is not None:
+        checagens.append(criterios["usa_tabela"] == consultou_tabela)
+    if criterios.get("usa_rede") is not None:
+        checagens.append(criterios["usa_rede"] == ("consultar_rede" in ferramentas))
     return {"nota": nota, "faltou": faltou, "proibido": proibido,
-            "tabela_ok": None if esperado is None else esperado == consultou_tabela}
+            "tabela_ok": all(checagens) if checagens else None}
 
 
 def rodar(indices: list[int], pensar: bool) -> list[dict]:
@@ -62,24 +107,42 @@ def rodar(indices: list[int], pensar: bool) -> list[dict]:
     for n in indices:
         p = perguntas[n - 1]
         inicio = time.time()
-        texto, fontes, termos, fim = [], [], [], {}
+        texto, fontes, termos, ferramentas, fim, alerta, na_tela = [], [], [], [], {}, False, 0
+        args_rede = []
         for ev in responder(p["pergunta"], pensar=pensar, atalhos=False):
             if ev["tipo"] == "texto":
                 texto.append(ev["texto"])
             elif ev["tipo"] == "fontes":
                 fontes = [f["id"] for f in ev["fontes"]]
             elif ev["tipo"] == "ferramenta":
-                termos.append(ev["argumentos"].get("termo", ""))
+                ferramentas.append(ev["nome"])
+                if ev["nome"] == "consultar_rede":
+                    args_rede.append({k: v for k, v in ev["argumentos"].items()
+                                      if k in ("especialidade", "cidade", "bairro")})
+                if ev.get("lista"):
+                    na_tela = len(ev["lista"]["prestadores"])
+                if ev["nome"] == "consultar_tabela":
+                    termos.append(ev["argumentos"].get("termo", ""))
+            elif ev["tipo"] == "alerta":
+                alerta = True
             elif ev["tipo"] == "fim":
                 fim = ev
         resposta = "".join(texto).strip()
         r = {"n": n, "categoria": p["categoria"], "pergunta": p["pergunta"],
              "resposta_esperada": p["resposta_esperada"], "resposta": resposta,
-             "fontes": fontes, "termos_tabela": termos, "segundos": round(time.time() - inicio, 1),
+             "fontes": fontes, "termos_tabela": termos, "ferramentas": ferramentas, "alerta": alerta,
+             "args_rede": args_rede, "segundos": round(time.time() - inicio, 1),
              "tokens_por_segundo": fim.get("tokens_por_segundo", 0),
-             **corrigir(resposta, p["criterios"], bool(termos))}
+             **corrigir(resposta, p["criterios"], bool(termos), ferramentas, p["pergunta"], args_rede)}
+        if "alerta" in p["criterios"] and p["criterios"]["alerta"] != alerta:
+            r["nota"] = "ERRO"
+            r["proibido"].append("alerta de emergência " + ("faltou" if p["criterios"]["alerta"] else "sobrando"))
+        r["prestadores_na_tela"] = na_tela
+        if p["criterios"].get("lista_na_tela") and not na_tela:
+            r["nota"] = "ERRO"
+            r["proibido"].append("lista de prestadores não apareceu na tela")
         resultados.append(r)
-        tabela = {None: "", True: "", False: " | TABELA: " + ("consultou sem precisar" if termos else "não consultou")}[r["tabela_ok"]]
+        tabela = {None: "", True: "", False: f" | FERRAMENTA errada: chamou {ferramentas or 'nenhuma'}"}[r["tabela_ok"]]
         print(f"[{r['nota']:<7}] {n:2d}. {p['pergunta'][:60]:<60} {r['segundos']:5.1f}s{tabela}", flush=True)
         if r["nota"] != "OK":
             print(f"           faltou: {r['faltou']} | proibido: {r['proibido']}")
@@ -93,7 +156,7 @@ def resumo(resultados: list[dict]) -> str:
     com_regra = [r for r in resultados if r["tabela_ok"] is not None]
     segundos = [r["segundos"] for r in resultados]
     return (f"OK {contar('OK')}/{total} | parcial {contar('PARCIAL')} | erro {contar('ERRO')} | "
-            f"decisão da tabela certa {sum(r['tabela_ok'] for r in com_regra)}/{len(com_regra)} | "
+            f"decisão da ferramenta certa {sum(r['tabela_ok'] for r in com_regra)}/{len(com_regra)} | "
             f"tempo médio {sum(segundos) / total:.1f}s (total {sum(segundos) / 60:.1f} min)")
 
 
@@ -104,7 +167,8 @@ def salvar(resultados: list[dict], rotulo: str, pensar: bool, nome: str = "") ->
     base = PASTA_RESULTADOS / nome
 
     base.with_suffix(".json").write_text(json.dumps(
-        {"resumo": resumo(resultados), "pensar": pensar, "resultados": resultados},
+        {"resumo": resumo(resultados), "pensar": pensar,
+         "arquivo": ARQUIVO_PERGUNTAS.relative_to(PASTA).as_posix(), "resultados": resultados},
         ensure_ascii=False, indent=1), encoding="utf-8")
 
     linhas = [f"# Eval das respostas: {nome}", "", f"**{resumo(resultados)}**", ""]
@@ -143,11 +207,14 @@ def comparar(a: Path, b: Path) -> None:
 def recorrigir(arquivo: Path) -> None:
     """Critério ajustado (ex.: a régua puniu uma resposta certa): corrige de novo as respostas
     guardadas e regrava a rodada, sem gastar 20 minutos de modelo."""
+    global ARQUIVO_PERGUNTAS
     rodada = json.loads(arquivo.read_text(encoding="utf-8"))
+    ARQUIVO_PERGUNTAS = PASTA / rodada.get("arquivo", "evals/perguntas_resposta.json")
     perguntas = json.loads(ARQUIVO_PERGUNTAS.read_text(encoding="utf-8"))
     for r in rodada["resultados"]:
         antes = r["nota"]
-        r.update(corrigir(r["resposta"], perguntas[r["n"] - 1]["criterios"], bool(r["termos_tabela"])))
+        r.update(corrigir(r["resposta"], perguntas[r["n"] - 1]["criterios"], bool(r["termos_tabela"]),
+                          r.get("ferramentas", []), r["pergunta"], r.get("args_rede", [])))
         if r["nota"] != antes:
             print(f"  {r['n']:2d}. {antes:<7} -> {r['nota']:<7} {r['pergunta'][:60]}")
     print(resumo(rodada["resultados"]))
@@ -156,7 +223,10 @@ def recorrigir(arquivo: Path) -> None:
 
 
 def main() -> None:
+    global ARQUIVO_PERGUNTAS
     args = sys.argv[1:]
+    if "--arquivo" in args:
+        ARQUIVO_PERGUNTAS = PASTA / args[args.index("--arquivo") + 1]
     if "--recorrigir" in args:
         recorrigir(Path(args[args.index("--recorrigir") + 1]))
         return

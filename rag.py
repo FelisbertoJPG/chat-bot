@@ -7,8 +7,9 @@ Fluxo de uma pergunta:
     0. memória (memoria.py): resposta validada para a mesma pergunta sai direto; pergunta
        já respondida pelo modelo volta do cache. Nos dois casos, nenhuma etapa abaixo roda.
     1. busca: os 4 artigos mais parecidos com a pergunta (+ respostas validadas ligadas a eles)
-    2. decisão (tool calling): o modelo vê só a pergunta e a ferramenta consultar_tabela,
-       e decide se consulta a tabela e com qual termo
+    2. decisão (tool calling): o modelo vê só a pergunta e as ferramentas consultar_tabela
+       (valores) e consultar_rede (quem atende, onde; só se o arquivo da rede existir), e
+       decide qual chamar e com que argumentos
     3. resposta: o modelo recebe pergunta + artigos + resultado da tabela e responde
 
 Tool calling: o modelo não executa nada. Ele responde "quero chamar consultar_tabela
@@ -29,6 +30,7 @@ Uso no terminal:
 
 import hashlib
 import json
+import re
 import sys
 import time
 from collections.abc import Iterator
@@ -37,6 +39,7 @@ from pathlib import Path
 import ollama
 
 import memoria
+import rede
 from busca import ARQUIVO_INDICE, buscar
 from tabela import ARQUIVO as ARQUIVO_TABELA
 from tabela import FONTE_CITACAO, VIGENCIA, consultar_tabela
@@ -45,6 +48,21 @@ MODELO_RESPOSTA = "qwen3.5:4b"
 ARTIGOS_NO_PROMPT = 4
 MAX_CONSULTAS = 3  # limite de chamadas de ferramenta por pergunta
 FERRAMENTAS = {"consultar_tabela": consultar_tabela}
+if rede.disponivel():  # o arquivo da rede fica fora do Git: sem ele, a ferramenta não existe
+    FERRAMENTAS["consultar_rede"] = rede.consultar_rede
+
+# Sinais de emergência: a tela mostra um alerta fixo (192 / pronto atendimento) antes da
+# resposta. É regra no código, não no prompt, para não depender do modelo. A resposta continua
+# (a pergunta pode ser sobre cobertura: "o plano cobre tratamento de AVC?").
+_RE_EMERGENCIA = re.compile(
+    r"dor no peito|aperto no peito|falta de ar|nao consigo respirar|dificuldade (de|para) respirar|"
+    r"desmai|convuls|infarto|\bavc\b|derrame|boca torta|perda de forca|sangramento (forte|intenso)|"
+    r"envenen|overdose|suicid|me matar|tirar minha vida")
+ALERTA_EMERGENCIA = ("Se isso está acontecendo agora, é uma emergência: ligue 192 (SAMU) ou vá ao "
+                     "pronto atendimento mais próximo. O regulamento garante urgência e emergência "
+                     "mesmo durante a carência (Art. 63, §2º).")
+ALERTA_VIDA = ("Se você está pensando em tirar a própria vida, ligue agora para o CVV, 188 "
+               "(24 horas, gratuito), ou para o SAMU, 192. Você não está sozinho.")
 
 # Janela de contexto igual nas duas etapas: se o num_ctx muda entre uma chamada e outra, o Ollama
 # recarrega o modelo (medido: ~3,5 s a cada troca, 2 trocas por pergunta). 16384 cabe 4 artigos +
@@ -93,6 +111,25 @@ específico, ou perguntar valor, preço, custo, código ou quanto se paga.
 - Se o resultado vier vazio, tente outro termo.
 - Se a pergunta for só sobre regras (carência, limite de consultas, dependentes, reembolso, \
 internação), não chame nada e responda apenas: SEM_CONSULTA"""
+if "consultar_rede" in FERRAMENTAS:
+    SYSTEM_DECISAO += """
+- Chame consultar_rede (e não consultar_tabela) se a pessoa quer saber quem atende, que \
+especialista procurar, onde fazer uma consulta ou exame, ou pede um prestador perto dela. \
+Passe a especialidade; cidade e bairro só se a pessoa disser.
+- Para um sintoma, escolha a especialidade mais provável (ex.: zumbido no ouvido -> \
+otorrinolaringologia; tristeza e ansiedade -> psicologia)."""
+
+# Pedido claro de prestador ("que especialista procuro?", "onde faço exame?"): a decisão recebe
+# só a ferramenta da rede e um prompt focado. Com as duas ferramentas e o prompt geral, o modelo
+# de 4B respondeu "dor nas costas, que especialista procuro?" sem consultar a rede.
+_RE_PEDE_PRESTADOR = re.compile(
+    r"que (especialista|medico|profissional)|qual (especialista|medico|profissional)|"
+    r"quem (eu )?(devo )?(procur|atende|consult)|onde (eu )?(faco|fazer|posso fazer|consulto|encontro)|"
+    r"perto de (mim|casa)|mais proxim|rede credenciada|credenciados?\b")
+SYSTEM_DECISAO_REDE = """A pessoa quer saber quem atende ou que especialista procurar no plano \
+de saúde do IPASEM. Chame consultar_rede com a especialidade mais provável para o caso (ex.: \
+zumbido no ouvido -> otorrinolaringologia; tristeza e ansiedade -> psicologia). Para hospitais, \
+use especialidade "hospital". Passe cidade e bairro só se a pessoa disser."""
 
 SYSTEM = f"""Você tira dúvidas de beneficiários do plano de saúde do IPASEM (Novo Hamburgo).
 
@@ -147,7 +184,10 @@ def montar_prompt(pergunta: str, artigos: list[dict], consultas: list[dict],
         partes.append("Respostas validadas ligadas a esses artigos:\n\n" + "\n\n".join(
             f"Pergunta validada: {v['pergunta']}\nResposta correta: {v['resposta']}" for v in validadas))
     for c in consultas:
-        partes.append(resultado_em_texto(c["termo"], c["resultado"]))
+        if c["nome"] == "consultar_rede":
+            partes.append(rede.resultado_em_texto(c["argumentos"], c["resultado"]))
+        else:
+            partes.append(resultado_em_texto(c["termo"], c["resultado"]))
     # A pergunta vem no começo e no fim: o modelo pequeno presta mais atenção nas pontas.
     partes.append(f"Pergunta (repetida): {pergunta}")
     return "\n\n".join(partes)
@@ -196,6 +236,31 @@ def resumo_resultado(resultado: dict) -> list[str]:
     return linhas
 
 
+# Palavras que apontam para algo dito antes ("isso", "dele", "também"...).
+_RE_REFERENCIA = re.compile(
+    r"\b(isso|disso|nisso|esse|essa|esses|essas|desse|dessa|nesse|nessa|este|esta|deste|desta|"
+    r"ele|ela|eles|elas|dele|dela|deles|delas|mesmo|mesma|tambem|ai|la|entao)\b")
+MAX_PALAVRAS_CONTINUACAO = 7
+
+
+def parece_continuacao(pergunta: str) -> bool:
+    """Só pergunta com cara de continuação vai para a reescrita: começa com "e"/"mas", aponta
+    para algo dito antes ("isso", "dele") ou é curta. Uma pergunta longa sem nada disso já é
+    completa, e o modelo de 4B tendia a "contaminá-la" com o assunto da conversa: "Quais são as
+    regras de carência...?" depois de falar de implante virava "carência para implante"; uma regra
+    no prompt não resolveu (7/10), o filtro sim (9/10), e ainda poupa ~5 s nessas perguntas."""
+    texto = memoria.normalizar(pergunta)
+    return bool(re.match(r"(e|mas)\b", texto) or _RE_REFERENCIA.search(texto)
+                or len(texto.split()) <= MAX_PALAVRAS_CONTINUACAO)
+
+
+def entender_pergunta(pergunta: str, historico: list[dict]) -> str:
+    """A pergunta como ela deve ser respondida: reescrita se for continuação da conversa."""
+    if not historico or not parece_continuacao(pergunta):
+        return pergunta
+    return reescrever(pergunta, historico)
+
+
 def reescrever(pergunta: str, historico: list[dict]) -> str:
     """Pergunta de continuação -> pergunta completa, usando as últimas trocas da conversa.
     historico: [{"pergunta": ..., "resposta": ...}], da mais antiga para a mais nova."""
@@ -223,7 +288,8 @@ def reescrever(pergunta: str, historico: list[dict]) -> str:
 
 
 # Arquivos que mudam a resposta. Se qualquer um mudar, o cache antigo deixa de valer.
-ARQUIVOS_CODIGO = [Path(__file__).with_name(n) for n in ("rag.py", "busca.py", "tabela.py", "memoria.py")]
+ARQUIVOS_CODIGO = [Path(__file__).with_name(n)
+                   for n in ("rag.py", "busca.py", "tabela.py", "memoria.py", "rede.py")]
 
 
 def impressao_digital() -> str:
@@ -232,7 +298,9 @@ def impressao_digital() -> str:
     h = hashlib.sha256(memoria.versao_memoria().encode())
     for arquivo in ARQUIVOS_CODIGO:
         h.update(arquivo.read_bytes())
-    for arquivo in (ARQUIVO_INDICE, ARQUIVO_TABELA):
+    for arquivo in (ARQUIVO_INDICE, ARQUIVO_TABELA, rede.ARQUIVO):
+        if not arquivo.exists():  # a rede é opcional
+            continue
         info = arquivo.stat()
         h.update(f"{info.st_size}:{info.st_mtime_ns}".encode())
     return h.hexdigest()[:16]
@@ -250,11 +318,12 @@ def responder(pergunta: str, pensar: bool = False, atalhos: bool = True,
 
     Gera eventos para a interface:
     {"tipo": "reescrita", ...}   -> como a pergunta de continuação foi entendida
+    {"tipo": "alerta", ...}      -> sinal de emergência: mensagem fixa (192 / CVV) antes da resposta
     {"tipo": "memoria", ...}     -> respostas validadas usadas ("exata": é a resposta;
                                     "ligada": foram junto com os artigos para o modelo)
     {"tipo": "fontes", ...}      -> artigos encontrados pela busca
     {"tipo": "pensando"}         -> modelo está raciocinando
-    {"tipo": "ferramenta", ...}  -> o modelo consultou a tabela
+    {"tipo": "ferramenta", ...}  -> o modelo consultou a tabela ou a rede credenciada ("nome")
     {"tipo": "texto", ...}       -> pedaço da resposta
     {"tipo": "fim", ...}         -> tempos; "origem" diz de onde veio: memoria, cache ou modelo
     """
@@ -262,11 +331,18 @@ def responder(pergunta: str, pensar: bool = False, atalhos: bool = True,
 
     # c. Conversa: daqui em diante tudo (memória, cache, busca, resposta) usa a pergunta completa.
     if historico:
-        completa = reescrever(pergunta, historico)
+        completa = entender_pergunta(pergunta, historico)
         if memoria.normalizar(completa) != memoria.normalizar(pergunta):
             yield {"tipo": "reescrita", "original": pergunta, "pergunta": completa,
                    "segundos": round(time.time() - inicio, 1)}
             pergunta = completa
+
+    # Emergência: alerta fixo, sempre (também quando a resposta vem da memória ou do cache).
+    normalizada = memoria.normalizar(pergunta)
+    if re.search(r"suicid|me matar|tirar minha vida", normalizada):
+        yield {"tipo": "alerta", "mensagem": ALERTA_VIDA}
+    elif _RE_EMERGENCIA.search(normalizada):
+        yield {"tipo": "alerta", "mensagem": ALERTA_EMERGENCIA}
 
     if not atalhos:
         yield from _gerar(pergunta, pensar, inicio)
@@ -322,10 +398,14 @@ def _gerar(pergunta: str, pensar: bool, inicio: float) -> Iterator[dict]:
 
     # Etapa 2: decisão. Só a pergunta e a ferramenta, sem os artigos.
     consultas: list[dict] = []
-    mensagens = [{"role": "system", "content": SYSTEM_DECISAO}, {"role": "user", "content": pergunta}]
+    sistema, ferramentas = SYSTEM_DECISAO, list(FERRAMENTAS.values())
+    if "consultar_rede" in FERRAMENTAS and _RE_PEDE_PRESTADOR.search(memoria.normalizar(pergunta)):
+        # Pedido claro de "quem me atende": só a rede, com uma tarefa só (escolher a especialidade).
+        sistema, ferramentas = SYSTEM_DECISAO_REDE, [rede.consultar_rede]
+    mensagens = [{"role": "system", "content": sistema}, {"role": "user", "content": pergunta}]
     while len(consultas) < MAX_CONSULTAS:
         decisao = ollama.chat(
-            model=MODELO_RESPOSTA, messages=mensagens, tools=list(FERRAMENTAS.values()),
+            model=MODELO_RESPOSTA, messages=mensagens, tools=ferramentas,
             think=False, keep_alive=MANTER_CARREGADO,
             # Se não for chamar ferramenta, não precisa escrever nada longo.
             # Temperatura 0: chamar ou não a tabela não pode depender de sorteio (medido: com o
@@ -341,10 +421,14 @@ def _gerar(pergunta: str, pensar: bool, inicio: float) -> Iterator[dict]:
             nome, argumentos = chamada.function.name, dict(chamada.function.arguments or {})
             funcao = FERRAMENTAS.get(nome)
             resultado = funcao(**argumentos) if funcao else {"erro": f"ferramenta {nome} não existe"}
-            consultas.append({"termo": argumentos.get("termo", ""), "resultado": resultado})
+            consultas.append({"nome": nome, "argumentos": argumentos,
+                              "termo": argumentos.get("termo", ""), "resultado": resultado})
             yield {"tipo": "ferramenta", "nome": nome, "argumentos": argumentos,
                    "total": resultado.get("total_encontrado", 0),
-                   "resumo": resumo_resultado(resultado) if funcao else []}
+                   "resumo": (rede.resumo(resultado) if nome == "consultar_rede"
+                              else resumo_resultado(resultado)) if funcao else [],
+                   # Contatos completos para a tela, direto do cadastro (o modelo não os copia).
+                   "lista": rede.para_tela(resultado) if nome == "consultar_rede" else None}
             mensagens.append({"role": "tool", "tool_name": nome,
                               "content": json.dumps(resultado, ensure_ascii=False)})
         # Achou algo: não precisa de outra rodada. Vazio: o modelo pode tentar outro termo.
@@ -394,6 +478,8 @@ if __name__ == "__main__":
             print("Fontes: " + ", ".join(f"{f['id']} ({f['paginas']})" for f in evento["fontes"]) + "\n")
         elif evento["tipo"] == "reescrita":
             print(f"[entendi como: {evento['pergunta']}]\n")
+        elif evento["tipo"] == "alerta":
+            print(f"[ALERTA] {evento['mensagem']}\n")
         elif evento["tipo"] == "memoria":
             rotulo = "resposta validada" if evento["modo"] == "exata" else "respostas validadas ligadas aos artigos"
             print(f"[memória: {rotulo}] " + " | ".join(i["pergunta"] for i in evento["itens"]) + "\n")

@@ -12,7 +12,8 @@ O resumo está no [README](../README.md).
 | v1.1 | Resoluções complementares e tabela única de 2024 como ferramenta (tool calling) | feito |
 | tabela 2025 | Fonte da tabela passa a ser a OS 01/2025: citação com data de vigência e páginas do documento oficial | feito |
 | evals | Perguntas com gabarito validado por especialistas, script que mede os acertos | script pronto (18/22); falta a validação por especialistas |
-| conversa | Perguntas de continuação pela reescrita da pergunta; decisão e reescrita sem sorteio | feito (7/8) |
+| conversa | Perguntas de continuação pela reescrita da pergunta; decisão e reescrita sem sorteio | feito (10/11) |
+| rede | Rede credenciada como ferramenta (quem atende, onde), contatos e cidades direto do cadastro na tela, alerta de emergência | feito (8/9) |
 
 ## 1. Escolha do modelo local
 
@@ -201,6 +202,49 @@ A que falha: "e se não fosse emergência?" perde o "tomei posse há 2 meses". A
 passar seria decorar a prova com 8 casos; fica como limitação, e a tela mostra como a pergunta foi
 entendida. Os exemplos do prompt usam assuntos que não estão nos testes (fisioterapia,
 dermatologia), para não maquiar o resultado.
+
+**Erro visto no uso:** depois de perguntar sobre vacina e óculos, "O que posso fazer de acordo com
+o regulamento da assistência?" (pergunta nova, geral) foi entendida como "...quando o plano não
+cobre óculos ou vacinas?". Virou teste, junto com outra mudança de assunto ("regras de carência"
+depois de falar de implante, que virava "carência para implante"). Os dois falharam: 7/10.
+
+| Correção | Resultado | Chamadas ao modelo |
+|---|---|---|
+| Regra + exemplo no prompt ("pergunta que traz o próprio assunto sai igual") | 7/10 | 10 |
+| Filtro no código: só reescreve o que começa com "e"/"mas", tem "isso"/"dele"/"também" ou tem até 7 palavras | **9/10** | 8 |
+| Os dois juntos | 9/10 | 8 |
+
+O modelo de 4B ignorou a regra; o filtro resolveu e ainda poupa ~5 s nas perguntas longas. Ficou
+só o filtro. Ele não pega pergunta curta e completa ("oq posso fazer?"), então a tela ganhou o
+botão "Não era isso: perguntar sem a conversa", que também tira a troca mal entendida da conversa.
+
+## Rede credenciada
+
+O cadastro de prestadores (exportado do sistema do IPASEM, mais atual que o PDF do site) tem
+1.835 linhas: 1.165 prestadores, 97 especialidades, 20 cidades. Fica fora do Git: muda o tempo
+todo e tem nomes, endereços e 354 celulares de profissionais. Mesmo molde da tabela: dados
+estruturados + ferramenta (`consultar_rede(especialidade, cidade, bairro)`), sem busca por
+significado. Nome popular -> especialidade pelo começo da palavra ("cardiologista" ~
+"cardiologia") e alguns sinônimos ("dentista" -> odontologia); grafias diferentes do mesmo lugar
+unificadas ("H VELHO", "JARDIM MAUÁ"). Sem cidade nem bairro, a ferramenta não lista ninguém: só
+conta, e o chatbot pede o local.
+
+| Versão | Rede (9) | O que aconteceu |
+|---|---|---|
+| Modelo recebe os contatos e os escreve | 4/9 | "dor nas costas, que especialista?" não consultou a rede; endereço copiado errado ("Rua Cideira"); telefones omitidos |
+| Contatos só na tela; rota direta para a rede quando a pergunta diz "que especialista", "quem procuro", "onde faço" | 7/9 | Régua nova (telefone/citação inventados) pegou "código DER-CONSULTA, p. Y" e depois "Caxias do Sul", que não estava no resultado |
+| Instrução "cite só cidades do resultado" | 7/9 | Continuou inventando Caxias do Sul |
+| Cidades também só na tela; modelo recebe totais e nomes | **8/9** | Sobra a polissonografia (erro antigo) |
+
+A lição se repetiu três vezes: pedir ao modelo de 4B que não invente não basta; o que funciona é
+não dar a ele o fato para copiar e mostrar o fato direto do cadastro. Hospitais ("Quais hospitais
+são credenciados?") não são especialidade: a ferramenta filtra pelo tipo de prestador, e a
+pergunta 22 do eval principal, que antes só podia dizer "não encontrei", passou a listar os 2 de
+Novo Hamburgo. As 22 continuam em 18/22 com a ferramenta nova.
+
+Emergência (dor no peito, falta de ar, AVC, ideação suicida): alerta fixo na tela (192, CVV 188)
+por regra no código, e a resposta continua, porque a pergunta pode ser de cobertura ("o plano
+cobre tratamento de AVC?"). Os resultados dos evals da rede ficam fora do Git (citam nomes).
 
 ## v0: Claude via API (`claude_v0.py`)
 

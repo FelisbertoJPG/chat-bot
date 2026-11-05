@@ -8,13 +8,13 @@
   :root {
     --bg: #f6f6f4; --painel: #ffffff; --borda: #e3e2de; --texto: #1f1f1d; --suave: #6b6a66;
     --destaque: #2f6f5e; --destaque-texto: #ffffff; --usuario: #e8f1ee; --gabarito: #fff7e0;
-    --gabarito-borda: #e9cf7a; --codigo: #f0efeb;
+    --gabarito-borda: #e9cf7a; --codigo: #f0efeb; --alerta: #fdecea; --alerta-borda: #e5a29a;
   }
   @media (prefers-color-scheme: dark) {
     :root {
       --bg: #161615; --painel: #1f1f1d; --borda: #33332f; --texto: #ecebe7; --suave: #9b9a95;
       --destaque: #5fb39b; --destaque-texto: #0f1f1a; --usuario: #22302c; --gabarito: #2c2715;
-      --gabarito-borda: #6b5a22; --codigo: #262623;
+      --gabarito-borda: #6b5a22; --codigo: #262623; --alerta: #3a1f1c; --alerta-borda: #8a3d35;
     }
   }
   * { box-sizing: border-box; }
@@ -71,6 +71,22 @@
     background: var(--gabarito); border: 1px solid var(--gabarito-borda);
   }
   .metricas { font-size: 12px; color: var(--suave); margin-top: 6px; }
+  .lista-rede {
+    margin-top: 8px; padding: 10px 12px; border-radius: 8px; font-size: 13px;
+    background: var(--painel); border: 1px solid var(--destaque);
+  }
+  .prestador { border-top: 1px solid var(--borda); padding: 8px 0; }
+  .prestador:first-of-type { border-top: 0; }
+  .alerta {
+    margin-bottom: 8px; padding: 10px 12px; border-radius: 8px; font-weight: 600;
+    background: var(--alerta); border: 1px solid var(--alerta-borda); color: var(--texto);
+  }
+  .nao-era {
+    margin-left: 6px; padding: 2px 8px; border: 1px solid var(--borda); border-radius: 6px;
+    background: var(--bg); color: var(--texto); font: inherit; font-size: 12px; cursor: pointer;
+  }
+  .nao-era:hover { border-color: var(--destaque); }
+  .nao-era:disabled { opacity: .5; cursor: default; }
   .vazio { max-width: 760px; margin: 60px auto; text-align: center; color: var(--suave); }
   form { border-top: 1px solid var(--borda); background: var(--painel); padding: 12px 20px 16px; }
   .entrada { max-width: 760px; margin: 0 auto; display: flex; gap: 8px; }
@@ -181,7 +197,7 @@ function adicionarMensagem(classe) {
   return msg;
 }
 
-async function perguntar(pergunta, gabarito = null) {
+async function perguntar(pergunta, gabarito = null, semConversa = false) {
   ocupado = true;
   $("enviar").disabled = true;
 
@@ -200,8 +216,8 @@ async function perguntar(pergunta, gabarito = null) {
 
   let resposta = "";
   let entendida = pergunta;
-  // Perguntas de teste são completas: vão sem a conversa (não precisam de reescrita).
-  const historico = gabarito ? [] : conversa.slice(-TROCAS_ENVIADAS);
+  // Perguntas de teste são completas e "Não era isso" pede a pergunta crua: vão sem a conversa.
+  const historico = gabarito || semConversa ? [] : conversa.slice(-TROCAS_ENVIADAS);
   if (historico.length) status.textContent = status.dataset.base = "Entendendo a pergunta...";
   try {
     const r = await fetch("/api/perguntar", {
@@ -233,16 +249,48 @@ async function perguntar(pergunta, gabarito = null) {
           detalhes.insertAdjacentHTML("beforeend",
             `<details><summary>Artigos enviados ao modelo: ${ev.fontes.map((f) => escapar(f.id)).join(", ")}</summary>${itens}</details>`);
         } else if (ev.tipo === "ferramenta") {
-          status.dataset.base = "Consultou a tabela, gerando resposta...";
-          const termo = ev.argumentos.termo || JSON.stringify(ev.argumentos);
           const itens = ev.resumo.map((l) => `<div class="fonte">${escapar(l)}</div>`).join("");
+          let titulo;
+          if (ev.nome === "consultar_rede") {
+            status.dataset.base = "Consultou a rede credenciada, gerando resposta...";
+            const a = ev.argumentos;
+            const onde = [a.bairro, a.cidade].filter(Boolean).join(", ");
+            titulo = `🏥 Consultou a rede credenciada: ${escapar(a.especialidade || "")}${onde ? " em " + escapar(onde) : ""} (${ev.total} na rede)`;
+          } else {
+            status.dataset.base = "Consultou a tabela, gerando resposta...";
+            const termo = ev.argumentos.termo || JSON.stringify(ev.argumentos);
+            titulo = `🔎 Consultou a tabela por "${escapar(termo)}": ${ev.total} resultado(s)`;
+          }
           detalhes.insertAdjacentHTML("beforeend",
-            `<details><summary>🔎 Consultou a tabela por "${escapar(termo)}": ${ev.total} resultado(s)</summary>${itens || "<div class='fonte'>Nada encontrado.</div>"}</details>`);
+            `<details><summary>${titulo}</summary>${itens || "<div class='fonte'>Nada encontrado.</div>"}</details>`);
+          if (ev.lista) {
+            // Contatos direto do cadastro: o modelo não copia endereço nem telefone.
+            const cartoes = ev.lista.prestadores.map((p) => `
+              <div class="prestador"><b>${escapar(p.nome)}</b>${p.local ? ` · ${escapar(p.local)}` : ""}<br>
+              ${escapar(p.especialidade)}<br>${escapar([p.endereco, p.bairro, p.cidade].filter(Boolean).join(", "))}<br>
+              📞 ${escapar(p.telefones.join(" / ") || "telefone não informado")}</div>`).join("");
+            const cidades = Object.entries(ev.lista.por_cidade).map(([c, n]) => `${escapar(c)} ${n}`).join(" · ");
+            detalhes.insertAdjacentHTML("beforeend", `<div class="lista-rede">
+              <b>Rede credenciada: ${escapar(ev.lista.especialidades.join(", "))} (dados de ${escapar(ev.lista.dados_de)})</b>
+              <div class="metricas">Onde há: ${cidades}</div>${cartoes}
+              <div class="metricas">${escapar(ev.lista.aviso)}</div></div>`);
+          }
+        } else if (ev.tipo === "alerta") {
+          msg.insertAdjacentHTML("afterbegin", `<div class="alerta">⚠️ ${escapar(ev.mensagem)}</div>`);
         } else if (ev.tipo === "reescrita") {
           entendida = ev.pergunta;
           status.dataset.base = "Buscando artigos...";
           detalhes.insertAdjacentHTML("beforeend",
-            `<div class="metricas">💬 Entendi como: “${escapar(ev.pergunta)}” (${ev.segundos}s)</div>`);
+            `<div class="metricas">💬 Entendi como: “${escapar(ev.pergunta)}” (${ev.segundos}s)
+             <button type="button" class="nao-era">Não era isso: perguntar sem a conversa</button></div>`);
+          const original = ev.original, entendidaErrada = ev.pergunta;
+          detalhes.querySelector(".nao-era").onclick = (e) => {
+            if (ocupado) return;
+            e.target.disabled = true;
+            // A troca mal entendida sai da conversa, para não atrapalhar as próximas.
+            conversa = conversa.filter((t) => t.pergunta !== entendidaErrada);
+            perguntar(original, null, true);
+          };
         } else if (ev.tipo === "memoria") {
           const itens = ev.itens.map((i) => `
             <div class="fonte"><b>${escapar(i.pergunta)}</b>${i.artigos.length ? ` (${escapar(i.artigos.join(", "))})` : ""}<br>${formatar(i.resposta)}</div>`).join("");

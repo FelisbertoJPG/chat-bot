@@ -20,6 +20,13 @@ dados/cache_respostas.tmp
 # Rascunhos de mensagem de commit (revisados antes de virar commit)
 .commits/
 
+# Rede credenciada: nomes, endereços e telefones (inclusive celulares) de profissionais.
+# Fica só na máquina até decidir se e como pode ser publicada.
+prestadores.json
+# Resultados dos evals que usam a rede: as respostas citam nomes de profissionais.
+evals/resultados/*rede*
+evals/resultados/*hospitais*
+
 # PDFs originais: são públicos no site do IPASEM e só servem para regerar a pasta dados/
 docs/fontes/*.pdf
 

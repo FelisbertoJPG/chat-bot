@@ -308,14 +308,15 @@
   {
     "categoria": "Fora do regulamento",
     "pergunta": "Quais hospitais são credenciados em Novo Hamburgo?",
-    "resposta_esperada": "O regulamento não lista hospitais. Deve dizer que não encontrou, sem inventar nomes.",
-    "fontes": "Nenhuma",
+    "resposta_esperada": "Com o arquivo da rede credenciada: os 2 hospitais credenciados em Novo Hamburgo, com os contatos na lista da tela. Sem o arquivo: dizer que o regulamento não lista hospitais, sem inventar nomes.",
+    "fontes": "Rede credenciada (se disponível)",
     "criterios": {
       "deve_ter": [
-        "nao (encontr|ha |consta|informa|lista|tenho|possuo|esta (no|disponivel))"
+        "hospita"
       ],
       "nao_pode_ter": [],
-      "usa_tabela": false
+      "usa_tabela": false,
+      "telefones_reais": true
     }
   }
 ]

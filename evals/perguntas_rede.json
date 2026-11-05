@@ -1,0 +1,154 @@
+[
+  {
+    "categoria": "Rede: sintoma sem local",
+    "pergunta": "Estou com dor nas costas há uma semana. Que especialista eu procuro?",
+    "resposta_esperada": "Ortopedia (ou clínica geral), deixando claro que é indicação e não diagnóstico; diz quantos há na rede e pede cidade e bairro para indicar os mais próximos.",
+    "fontes": "Rede credenciada",
+    "criterios": {
+      "deve_ter": [
+        "ortoped|clinic[oa] geral",
+        "cidade|bairro|onde (voce )?mora|regiao"
+      ],
+      "nao_pode_ter": [
+        "\\bp\\. ?[a-z]\\b|codigo [a-z]{2,}-|codigo x\\b"
+      ],
+      "usa_tabela": false,
+      "usa_rede": true,
+      "telefones_reais": true,
+      "alerta": false
+    }
+  },
+  {
+    "categoria": "Rede: especialidade e cidade",
+    "pergunta": "Preciso de um cardiologista em São Leopoldo. Quem atende?",
+    "resposta_esperada": "Lista cardiologistas de São Leopoldo (13 na cidade) com os contatos na lista da tela, sem copiá-los no texto, como vieram da rede.",
+    "fontes": "Rede credenciada",
+    "criterios": {
+      "deve_ter": [
+        "sao leopoldo|sua cidade"
+      ],
+      "nao_pode_ter": [
+        "\\bp\\. ?[a-z]\\b|codigo [a-z]{2,}-|codigo x\\b"
+      ],
+      "usa_tabela": false,
+      "usa_rede": true,
+      "telefones_reais": true,
+      "lista_na_tela": true
+    }
+  },
+  {
+    "categoria": "Rede: bairro",
+    "pergunta": "Tem psicólogo no bairro Canudos, em Novo Hamburgo?",
+    "resposta_esperada": "Sim: 1 no Canudos (primeiro da lista), e outros em Novo Hamburgo, com os contatos na lista da tela, sem copiá-los no texto.",
+    "fontes": "Rede credenciada",
+    "criterios": {
+      "deve_ter": [
+        "canudos?\\b"
+      ],
+      "nao_pode_ter": [
+        "\\bp\\. ?[a-z]\\b|codigo [a-z]{2,}-|codigo x\\b"
+      ],
+      "usa_tabela": false,
+      "usa_rede": true,
+      "telefones_reais": true,
+      "lista_na_tela": true
+    }
+  },
+  {
+    "categoria": "Rede: exame",
+    "pergunta": "Onde eu faço exame de sangue em Campo Bom?",
+    "resposta_esperada": "Laboratórios de análises clínicas em Campo Bom (4), com os contatos na lista da tela, sem copiá-los no texto.",
+    "fontes": "Rede credenciada",
+    "criterios": {
+      "deve_ter": [
+        "campo bom"
+      ],
+      "nao_pode_ter": [
+        "\\bp\\. ?[a-z]\\b|codigo [a-z]{2,}-|codigo x\\b"
+      ],
+      "usa_tabela": false,
+      "usa_rede": true,
+      "telefones_reais": true,
+      "lista_na_tela": true
+    }
+  },
+  {
+    "categoria": "Rede: sintoma sem local",
+    "pergunta": "Meu filho de 3 anos está com tosse há dias, quem eu procuro?",
+    "resposta_esperada": "Pediatria, como indicação e não diagnóstico; pede cidade e bairro.",
+    "fontes": "Rede credenciada",
+    "criterios": {
+      "deve_ter": [
+        "pediatr"
+      ],
+      "nao_pode_ter": [
+        "\\bp\\. ?[a-z]\\b|codigo [a-z]{2,}-|codigo x\\b"
+      ],
+      "usa_tabela": false,
+      "usa_rede": true,
+      "telefones_reais": true,
+      "alerta": false
+    }
+  },
+  {
+    "categoria": "Rede: emergência",
+    "pergunta": "Estou com dor no peito e falta de ar agora, qual cardiologista eu procuro?",
+    "resposta_esperada": "Alerta fixo antes da resposta (192 / pronto atendimento). A resposta pode citar cardiologia.",
+    "fontes": "Alerta no código",
+    "criterios": {
+      "deve_ter": [],
+      "nao_pode_ter": [
+        "\\bp\\. ?[a-z]\\b|codigo [a-z]{2,}-|codigo x\\b"
+      ],
+      "usa_tabela": false,
+      "telefones_reais": true,
+      "alerta": true
+    }
+  },
+  {
+    "categoria": "Rede: local sem prestador",
+    "pergunta": "Tem dermatologista em Gramado?",
+    "resposta_esperada": "Não há dermatologista da rede em Gramado; pode citar as cidades onde há. Sem inventar nome nem telefone.",
+    "fontes": "Rede credenciada",
+    "criterios": {
+      "deve_ter": [
+        "nao (encontr|ha|tem|possui|existe)|nenhum"
+      ],
+      "nao_pode_ter": [
+        "\\bp\\. ?[a-z]\\b|codigo [a-z]{2,}-|codigo x\\b"
+      ],
+      "usa_tabela": false,
+      "usa_rede": true,
+      "telefones_reais": true
+    }
+  },
+  {
+    "categoria": "Controle: tabela, não rede",
+    "pergunta": "Quanto o IPASEM paga numa polissonografia?",
+    "resposta_esperada": "Valor da tabela (R$ 840,00); não deve consultar a rede.",
+    "fontes": "Tabela única (OS 01/2025)",
+    "criterios": {
+      "deve_ter": [
+        "\\b840"
+      ],
+      "nao_pode_ter": [],
+      "usa_tabela": true,
+      "usa_rede": false
+    }
+  },
+  {
+    "categoria": "Controle: regra, nenhuma ferramenta",
+    "pergunta": "Tomei posse há 2 meses e tive uma emergência. O plano me atende?",
+    "resposta_esperada": "Sim, a carência não vale para urgência e emergência; não consulta tabela nem rede.",
+    "fontes": "Art. 63, §2º",
+    "criterios": {
+      "deve_ter": [
+        "urgencia|emergencia",
+        "carencia"
+      ],
+      "nao_pode_ter": [],
+      "usa_tabela": false,
+      "usa_rede": false
+    }
+  }
+]

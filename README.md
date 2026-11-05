@@ -78,11 +78,23 @@ flowchart LR
    vira "Quantas consultas de clínico geral posso fazer?" antes da busca (~5 s a mais). Só essa
    etapa vê a conversa: mandar o histórico para a resposta aumentaria a leitura do prompt, que já
    é a parte mais lenta. Daí em diante tudo funciona igual, inclusive a memória e o cache.
+   Só vai para a reescrita o que parece continuação (começa com "e", tem "isso"/"dele", ou é
+   curta): o modelo "contaminava" perguntas completas com o assunto da conversa ("regras de
+   carência" depois de falar de implante virava "carência para implante"). Uma regra no prompt
+   não resolveu; o filtro no código sim.
 9. **Sem sorteio onde a tarefa é mecânica.** Com a temperatura padrão, duas rodadas iguais do eval
    discordaram em 5 das 22 decisões de consultar a tabela, e a reescrita deu 5/8 e 4/8 com o mesmo
    prompt. Decisão e reescrita usam temperatura 0; a resposta mantém o sorteio (o Qwen avisa que
    sem ele modelos pequenos entram em repetição), mas com semente fixa: a mesma pergunta dá a
    mesma resposta, e o eval mede só o que mudou.
+10. **Rede credenciada: o modelo escreve, o código mostra os fatos.** "Estou com dor nas costas,
+    quem procuro?" vira uma consulta à rede (ortopedia), e "moro no Canudos" na conversa traz os
+    mais próximos. Na primeira versão o modelo de 4B recebia os contatos e copiava errado
+    ("Rua Cideira" no lugar de "Cidreira"), omitia telefones e, quando não havia prestador,
+    inventava cidade ("Caxias do Sul"). Agora ele recebe só nomes, bairros e totais; endereço,
+    telefone e as cidades onde há prestador aparecem na tela direto do cadastro. Sinais de
+    emergência (dor no peito, falta de ar, AVC) mostram um alerta fixo (192 / CVV 188) por regra
+    no código. O arquivo da rede fica fora do Git: muda o tempo todo e tem dados de profissionais.
 
 ## Resultados
 
@@ -118,7 +130,23 @@ regulamento, carência (a busca não traz o Art. 63 quando a pergunta fala em "c
 psicologia (não consulta a tabela, onde está o limite de 30 sessões) e polissonografia (aplica o
 Art. 22 e divide o valor por 2).
 
-**Conversa** (8 perguntas de continuação, reescrita conferida): **7/8**, ~5 s cada. A que falha:
+**Rede credenciada** (9 perguntas: sintoma sem local, especialidade + cidade, bairro, exame,
+emergência, cidade sem prestador e 2 de controle; a régua reprova telefone, cidade ou citação
+que não vieram dos dados):
+
+| Versão | Certas | Ferramenta certa |
+|---|---|---|
+| Modelo copiando os contatos | 4/9 | 8/9 |
+| Contatos na tela + rota direta para a rede em "que especialista / onde faço" | 7/9 (régua nova) | 9/9 |
+| Cidades também na tela, modelo só com totais (atual) | **8/9** | **9/9** |
+
+O erro que sobra é a polissonografia, o mesmo das 22 perguntas. Com a rede, as 22 continuam em
+18/22 e a pergunta dos hospitais passou a ter resposta (2 em Novo Hamburgo). A decisão ficou
+alguns segundos mais lenta, porque o prompt descreve duas ferramentas.
+
+**Conversa** (11 casos: 6 continuações e 4 perguntas completas que não podem herdar o assunto da
+conversa, uma delas um erro real visto no uso, e "moro no Canudos" depois de perguntar sobre dor
+nas costas): **10/11**, ~5 s quando reescreve. A que falha:
 "e se não fosse emergência?" perde o "tomei posse há 2 meses" da pergunta anterior.
 
 O passo a passo de cada etapa está no [diário de desenvolvimento](docs/historico.md).
@@ -133,8 +161,14 @@ O passo a passo de cada etapa está no [diário de desenvolvimento](docs/histori
   (Art. 3º da Res. 33/2024). A versão em uso é a da OS nº 01/2025, vigente desde 01/11/2025: o
   chatbot informa essa data e avisa que pode haver valores mais novos.
 - **Conversa curta.** O chat lembra das últimas 3 perguntas, reescrevendo a nova; às vezes a
-  reescrita perde a situação contada antes (idade, tempo de posse). A tela mostra como a pergunta
-  foi entendida, e "Nova conversa" esquece tudo.
+  reescrita perde a situação contada antes (idade, tempo de posse), e uma pergunta curta e
+  completa ("oq posso fazer?") ainda pode herdar o assunto anterior. A tela mostra como a
+  pergunta foi entendida, com um botão "Não era isso" que pergunta de novo sem a conversa, e
+  "Nova conversa" esquece tudo.
+- **Rede: "mais próximo" é por bairro e cidade, não por distância.** O cadastro não tem
+  coordenadas, e calcular distância exigiria um serviço de mapas externo. Indicar especialidade
+  a partir de sintoma é orientação, não diagnóstico, e o modelo ainda acrescenta regras que
+  ninguém pediu (corretas nos testes, mas é texto a mais).
 - **A correção automática confere palavras, não entende a resposta.** Ela é uma triagem; a
   avaliação de verdade é a planilha revisada por gente.
 
@@ -157,6 +191,12 @@ cd chatbot-ipasem-rag
 .\iniciar.bat      # abre http://127.0.0.1:5000
 ```
 
+**Rede credenciada (opcional).** Para o chatbot indicar quem atende cada especialidade, salve a
+lista de prestadores como `prestadores.json` na raiz do projeto (exportada do sistema do IPASEM,
+no formato `{"total": ..., "rows": [...]}`). Ela não vai para o Git: muda o tempo todo (gente
+entra, prestadores saem) e tem endereços e telefones de profissionais. Sem o arquivo, a
+ferramenta não é oferecida ao modelo e o resto funciona igual.
+
 Os dados já processados estão em `dados/`, então os PDFs não são necessários para rodar. Para
 regerar tudo a partir dos documentos originais (públicos no site do IPASEM), salve-os em
 `docs/fontes/` e rode:
@@ -177,6 +217,8 @@ Outros comandos:
 .\.venv\Scripts\python.exe avaliar_respostas.py                 # eval das respostas (~15 min)
 .\.venv\Scripts\python.exe avaliar_respostas.py --so 7,20       # só algumas perguntas
 .\.venv\Scripts\python.exe avaliar_conversa.py                  # eval da reescrita na conversa
+.\.venv\Scripts\python.exe rede.py ortopedia "novo hamburgo" centro   # só a rede credenciada
+.\.venv\Scripts\python.exe avaliar_respostas.py --arquivo evals\perguntas_rede.json   # eval da rede
 .\.venv\Scripts\python.exe memoria.py                           # confere as respostas validadas
 .\.venv\Scripts\python.exe memoria.py limpar-cache              # apaga as respostas guardadas
 ```
@@ -189,6 +231,7 @@ Outros comandos:
 | `busca.py` | Embeddings e busca por significado |
 | `tabela.py` | Extrai a tabela única (OS 01/2025) e expõe a ferramenta `consultar_tabela` |
 | `rag.py` | Orquestra busca, decisão (tool calling) e resposta, em streaming |
+| `rede.py` | Rede credenciada (opcional): ferramenta `consultar_rede` por especialidade, cidade e bairro |
 | `memoria.py`, `memoria.md` | Respostas validadas por uma pessoa e cache das respostas já geradas |
 | `app.py`, `web/index.html` | Servidor local e interface de chat |
 | `avaliar_busca.py`, `avaliar_respostas.py`, `avaliar_conversa.py`, `evals/` | Evals da busca, das respostas (correção automática + planilha para revisão humana) e da conversa; resultados em `evals/resultados/` |

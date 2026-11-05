@@ -1,6 +1,7 @@
 """Eval da conversa: a pergunta de continuação vira uma pergunta completa?
 
-Mede só a etapa de reescrita (rag.reescrever), que é o que faz o chatbot "lembrar" da conversa.
+Mede só a etapa de reescrita (rag.entender_pergunta: o filtro "parece continuação?" + o modelo),
+que é o que faz o chatbot "lembrar" da conversa.
 Se a reescrita errar o assunto, a busca procura a coisa errada e nenhuma etapa depois conserta.
 
 Cada caso (evals/perguntas_conversa.json) tem a conversa anterior, a pergunta nova e regex que a
@@ -17,13 +18,13 @@ import time
 from pathlib import Path
 
 from avaliar_respostas import sem_acento
-from rag import reescrever
+from rag import entender_pergunta
 
 casos = json.loads((Path(__file__).parent / "evals" / "perguntas_conversa.json").read_text(encoding="utf-8"))
 acertos, tempos = 0, []
 for caso in casos:
     inicio = time.time()
-    nova = reescrever(caso["pergunta"], caso["conversa"])
+    nova = entender_pergunta(caso["pergunta"], caso["conversa"])
     tempos.append(time.time() - inicio)
     texto = sem_acento(nova)
     faltou = [p for p in caso["deve_ter"] if not re.search(p, texto)]

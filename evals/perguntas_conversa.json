@@ -127,5 +127,53 @@
     "nao_pode_ter": [
       "psiquiatr"
     ]
+  },
+  {
+    "conversa": [
+      {
+        "pergunta": "O IPASEM paga vacina?",
+        "resposta": "Não. Vacinas estão entre as exclusões de cobertura (Art. 51, alínea v, p. 23)."
+      },
+      {
+        "pergunta": "O IPASEM cobre óculos?",
+        "resposta": "Não. Óculos são próteses externas, excluídas da cobertura (Art. 51, alínea h, p. 22)."
+      }
+    ],
+    "pergunta": "O que posso fazer de acordo com o regulamento da assistência?",
+    "deve_ter": [
+      "regulamento"
+    ],
+    "nao_pode_ter": [
+      "oculos|vacina"
+    ]
+  },
+  {
+    "conversa": [
+      {
+        "pergunta": "Quanto eu pago num implante dentário?",
+        "resposta": "O IPASEM paga R$ 2.499,00 por implante e você paga 50% de coparticipação (Tabela única, OS 01/2025, código 6300, p. 165)."
+      }
+    ],
+    "pergunta": "Quais são as regras de carência para quem acabou de entrar no plano?",
+    "deve_ter": [
+      "carencia"
+    ],
+    "nao_pode_ter": [
+      "implante|dentari"
+    ]
+  },
+  {
+    "conversa": [
+      {
+        "pergunta": "Estou com dor nas costas há uma semana. Que especialista eu procuro?",
+        "resposta": "Procure ortopedia (é uma indicação, não um diagnóstico). A rede tem 76 ortopedistas. Me diga sua cidade e bairro para eu indicar os mais próximos."
+      }
+    ],
+    "pergunta": "Moro no Canudos, em Novo Hamburgo.",
+    "deve_ter": [
+      "ortoped|costas",
+      "canudos"
+    ],
+    "nao_pode_ter": []
   }
 ]
