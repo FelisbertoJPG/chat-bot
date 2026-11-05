@@ -66,6 +66,13 @@ flowchart LR
    a tabela" em vez de chamar a ferramenta. Separando as etapas, passou a chamar em 4 de 4 casos.
 6. **Tudo local.** Modelos abertos rodando via Ollama num PC de escritório, sem enviar dados para
    APIs externas. Num órgão de saúde, é a resposta para a pergunta da LGPD.
+7. **Memória ligada ao artigo, não à "pergunta parecida".** Respostas corrigidas por uma pessoa
+   ficam em `memoria.md`. Pergunta igual sai na hora; pergunta diferente só recebe a correção se
+   ela estiver ligada a um artigo que a busca trouxe. Medido com o modelo de embedding, "O IPASEM
+   paga vacina?" e "O IPASEM paga óculos?" (respostas opostas) dão 0,80 de semelhança, mais que
+   "paga vacina?" e "cobre vacinas?" (mesma dúvida), 0,59: semelhança não diz se é a mesma dúvida.
+   Respostas já geradas ficam num cache (47 s na primeira vez, instantâneo depois), descartado
+   sozinho quando código, dados ou correções mudam.
 
 ## Resultados
 
@@ -133,6 +140,8 @@ Outros comandos:
 .\.venv\Scripts\python.exe busca.py "carência"                  # só a busca
 .\.venv\Scripts\python.exe tabela.py "implante dentario"        # só a tabela
 .\.venv\Scripts\python.exe avaliar_busca.py                     # eval da busca
+.\.venv\Scripts\python.exe memoria.py                           # confere as respostas validadas
+.\.venv\Scripts\python.exe memoria.py limpar-cache              # apaga as respostas guardadas
 ```
 
 ## Estrutura
@@ -143,6 +152,7 @@ Outros comandos:
 | `busca.py` | Embeddings e busca por significado |
 | `tabela.py` | Extrai a tabela única de 2024 e expõe a ferramenta `consultar_tabela` |
 | `rag.py` | Orquestra busca, decisão (tool calling) e resposta, em streaming |
+| `memoria.py`, `memoria.md` | Respostas validadas por uma pessoa e cache das respostas já geradas |
 | `app.py`, `web/index.html` | Servidor local e interface de chat |
 | `avaliar_busca.py`, `evals/` | Evals: perguntas de teste e gabaritos |
 | `dados/` | Dados já processados (trechos, índice, tabela, itens descartados) |

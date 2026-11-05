@@ -1,7 +1,9 @@
 """Etapa 3: buscar os artigos, consultar a tabela se preciso e gerar a resposta.
 
 Fluxo de uma pergunta:
-    1. busca: os 4 artigos mais parecidos com a pergunta
+    0. memória (memoria.py): resposta validada para a mesma pergunta sai direto; pergunta
+       já respondida pelo modelo volta do cache. Nos dois casos, nenhuma etapa abaixo roda.
+    1. busca: os 4 artigos mais parecidos com a pergunta (+ respostas validadas ligadas a eles)
     2. decisão (tool calling): o modelo vê só a pergunta e a ferramenta consultar_tabela,
        e decide se consulta a tabela e com qual termo
     3. resposta: o modelo recebe pergunta + artigos + resultado da tabela e responde
@@ -22,14 +24,18 @@ Uso no terminal:
     python rag.py --pensar "Tomei posse há 6 meses, posso marcar consulta eletiva?"
 """
 
+import hashlib
 import json
 import sys
 import time
 from collections.abc import Iterator
+from pathlib import Path
 
 import ollama
 
-from busca import buscar
+import memoria
+from busca import ARQUIVO_INDICE, buscar
+from tabela import ARQUIVO as ARQUIVO_TABELA
 from tabela import consultar_tabela
 
 MODELO_RESPOSTA = "qwen3.5:4b"
@@ -75,6 +81,10 @@ atualizada depois. Siga a nota e avise a pessoa.
 use a "Ficha do regulamento": ela traz o número e a data da resolução, a quem se aplica e \
 os assuntos com seus artigos. Cite-a como (Ficha do regulamento).
 - Se a resposta depende de algo que a pessoa não informou, diga do que depende.
+- "Respostas validadas" foram conferidas por uma pessoa e valem mais que a sua leitura dos \
+artigos. Use uma resposta validada quando ela responde à mesma dúvida da pergunta; se for \
+sobre outro assunto (outra especialidade, outro procedimento), não a aplique. Cite como \
+(Resposta validada).
 - Responda em português simples, em no máximo 5 frases.
 
 Tabela de procedimentos:
@@ -93,11 +103,15 @@ def formatar_paginas(trecho: dict) -> str:
     return f"p. {inicio}" if inicio == fim else f"p. {inicio}-{fim}"
 
 
-def montar_prompt(pergunta: str, artigos: list[dict], consultas: list[dict]) -> str:
+def montar_prompt(pergunta: str, artigos: list[dict], consultas: list[dict],
+                  validadas: list[dict] = ()) -> str:
     blocos = [
         f"[{a['id']} | {formatar_paginas(a)} | {a['secao']}]\n{a['texto']}" for a in artigos
     ]
     partes = [f"Pergunta: {pergunta}", "Artigos do regulamento que podem ajudar:", "\n\n".join(blocos)]
+    if validadas:
+        partes.append("Respostas validadas ligadas a esses artigos:\n\n" + "\n\n".join(
+            f"Pergunta validada: {v['pergunta']}\nResposta correta: {v['resposta']}" for v in validadas))
     for c in consultas:
         partes.append(resultado_em_texto(c["termo"], c["resultado"]))
     # A pergunta vem no começo e no fim: o modelo pequeno presta mais atenção nas pontas.
@@ -147,15 +161,72 @@ def resumo_resultado(resultado: dict) -> list[str]:
     return linhas
 
 
+# Arquivos que mudam a resposta. Se qualquer um mudar, o cache antigo deixa de valer.
+ARQUIVOS_CODIGO = [Path(__file__).with_name(n) for n in ("rag.py", "busca.py", "tabela.py", "memoria.py")]
+
+
+def impressao_digital() -> str:
+    """Resumo de tudo o que gerou uma resposta: código (com os prompts e o modelo), dados e
+    respostas validadas. Para os dados grandes basta tamanho + data de modificação."""
+    h = hashlib.sha256(memoria.versao_memoria().encode())
+    for arquivo in ARQUIVOS_CODIGO:
+        h.update(arquivo.read_bytes())
+    for arquivo in (ARQUIVO_INDICE, ARQUIVO_TABELA):
+        info = arquivo.stat()
+        h.update(f"{info.st_size}:{info.st_mtime_ns}".encode())
+    return h.hexdigest()[:16]
+
+
+def _validada_para_tela(entrada: dict) -> dict:
+    return {"pergunta": entrada["pergunta"], "resposta": entrada["resposta"], "artigos": entrada["artigos"]}
+
+
 def responder(pergunta: str, pensar: bool = False) -> Iterator[dict]:
     """Gera eventos para a interface:
+    {"tipo": "memoria", ...}     -> respostas validadas usadas ("exata": é a resposta;
+                                    "ligada": foram junto com os artigos para o modelo)
     {"tipo": "fontes", ...}      -> artigos encontrados pela busca
     {"tipo": "pensando"}         -> modelo está raciocinando
     {"tipo": "ferramenta", ...}  -> o modelo consultou a tabela
     {"tipo": "texto", ...}       -> pedaço da resposta
-    {"tipo": "fim", ...}         -> tempos e velocidade
+    {"tipo": "fim", ...}         -> tempos; "origem" diz de onde veio: memoria, cache ou modelo
     """
     inicio = time.time()
+
+    # 0a. Resposta validada por uma pessoa para esta pergunta: sai direto, sem modelo.
+    validada = memoria.resposta_validada(pergunta)
+    if validada:
+        yield {"tipo": "memoria", "modo": "exata", "itens": [_validada_para_tela(validada)]}
+        yield {"tipo": "texto", "texto": validada["resposta"]}
+        yield {"tipo": "fim", "origem": "memoria", "tempo_total": round(time.time() - inicio, 1)}
+        return
+
+    # 0b. Mesma pergunta já respondida pelo modelo, com o mesmo código e os mesmos dados.
+    impressao = impressao_digital()
+    guardada = memoria.cache_buscar(pergunta, pensar, impressao)
+    if guardada:
+        yield from guardada["eventos"]
+        yield {"tipo": "fim", "origem": "cache", "tempo_total": round(time.time() - inicio, 1),
+               "tempo_original": guardada["tempo_original"], "gerada_em": guardada["gerada_em"]}
+        return
+
+    # Etapas 1 a 3, guardando o que a tela precisa para repetir a resposta depois.
+    eventos: list[dict] = []
+    texto: list[str] = []
+    for evento in _gerar(pergunta, pensar, inicio):
+        yield evento
+        if evento["tipo"] in ("memoria", "fontes", "ferramenta"):
+            eventos.append(evento)
+        elif evento["tipo"] == "texto":
+            texto.append(evento["texto"])
+        elif evento["tipo"] == "fim" and "".join(texto).strip():
+            eventos.append({"tipo": "texto", "texto": "".join(texto)})
+            memoria.cache_guardar(pergunta, pensar, impressao,
+                                  {"eventos": eventos, "tempo_original": evento["tempo_total"]})
+
+
+def _gerar(pergunta: str, pensar: bool, inicio: float) -> Iterator[dict]:
+    """Etapas 1 a 3: busca, decisão e resposta do modelo."""
     artigos = buscar(pergunta, k=ARTIGOS_NO_PROMPT)
     tempo_busca = time.time() - inicio
     yield {
@@ -166,6 +237,9 @@ def responder(pergunta: str, pensar: bool = False) -> Iterator[dict]:
             for a in artigos
         ],
     }
+    validadas = memoria.ligadas_aos_artigos([a["id"] for a in artigos])
+    if validadas:
+        yield {"tipo": "memoria", "modo": "ligada", "itens": [_validada_para_tela(v) for v in validadas]}
 
     # Etapa 2: decisão. Só a pergunta e a ferramenta, sem os artigos.
     consultas: list[dict] = []
@@ -203,7 +277,7 @@ def responder(pergunta: str, pensar: bool = False) -> Iterator[dict]:
         model=MODELO_RESPOSTA,
         messages=[
             {"role": "system", "content": SYSTEM},
-            {"role": "user", "content": montar_prompt(pergunta, artigos, consultas)},
+            {"role": "user", "content": montar_prompt(pergunta, artigos, consultas, validadas)},
         ],
         stream=True,
         think=pensar,
@@ -220,6 +294,7 @@ def responder(pergunta: str, pensar: bool = False) -> Iterator[dict]:
 
     yield {
         "tipo": "fim",
+        "origem": "modelo",
         "tempo_total": round(time.time() - inicio, 1),
         "tempo_busca": round(tempo_busca, 1),
         "tokens_por_segundo": round(tokens_gerados / segundos_gerando, 1) if segundos_gerando else 0,
@@ -236,6 +311,9 @@ if __name__ == "__main__":
     for evento in responder(pergunta, pensar=pensar):
         if evento["tipo"] == "fontes":
             print("Fontes: " + ", ".join(f"{f['id']} ({f['paginas']})" for f in evento["fontes"]) + "\n")
+        elif evento["tipo"] == "memoria":
+            rotulo = "resposta validada" if evento["modo"] == "exata" else "respostas validadas ligadas aos artigos"
+            print(f"[memória: {rotulo}] " + " | ".join(i["pergunta"] for i in evento["itens"]) + "\n")
         elif evento["tipo"] == "pensando":
             print("(pensando...)")
         elif evento["tipo"] == "ferramenta":
@@ -245,6 +323,11 @@ if __name__ == "__main__":
             print()
         elif evento["tipo"] == "texto":
             print(evento["texto"], end="", flush=True)
+        elif evento["tipo"] == "fim" and evento["origem"] == "memoria":
+            print(f"\n\n[resposta validada da memória, sem modelo: {evento['tempo_total']}s]")
+        elif evento["tipo"] == "fim" and evento["origem"] == "cache":
+            print(f"\n\n[do cache: {evento['tempo_total']}s | a original levou {evento['tempo_original']}s, "
+                  f"gerada em {evento['gerada_em']}]")
         elif evento["tipo"] == "fim":
             print(f"\n\n[{evento['tempo_total']}s no total | {evento['tokens_por_segundo']} tokens/s | "
                   f"{evento['consultas_tabela']} consulta(s) à tabela]")

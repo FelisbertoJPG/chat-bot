@@ -13,6 +13,10 @@ CLAUDE.md
 # Conversa em que o projeto foi construído (tem caminhos e dados da máquina)
 .conversa/
 
+# Cache das respostas já geradas (refeito sozinho; memoria.md, as respostas validadas, vai no repo)
+dados/cache_respostas.json
+dados/cache_respostas.tmp
+
 # Rascunhos de mensagem de commit (revisados antes de virar commit)
 .commits/
 

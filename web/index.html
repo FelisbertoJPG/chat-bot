@@ -227,6 +227,13 @@ async function perguntar(pergunta, gabarito = null) {
           const itens = ev.resumo.map((l) => `<div class="fonte">${escapar(l)}</div>`).join("");
           detalhes.insertAdjacentHTML("beforeend",
             `<details><summary>🔎 Consultou a tabela por "${escapar(termo)}": ${ev.total} resultado(s)</summary>${itens || "<div class='fonte'>Nada encontrado.</div>"}</details>`);
+        } else if (ev.tipo === "memoria") {
+          const itens = ev.itens.map((i) => `
+            <div class="fonte"><b>${escapar(i.pergunta)}</b>${i.artigos.length ? ` (${escapar(i.artigos.join(", "))})` : ""}<br>${formatar(i.resposta)}</div>`).join("");
+          const titulo = ev.modo === "exata"
+            ? "✅ Resposta validada, vinda da memória (sem passar pelo modelo)"
+            : `📌 ${ev.itens.length} resposta(s) validada(s) ligada(s) a esses artigos foram junto para o modelo`;
+          detalhes.insertAdjacentHTML("beforeend", `<details><summary>${titulo}</summary>${itens}</details>`);
         } else if (ev.tipo === "pensando") {
           status.dataset.base = "Pensando...";
         } else if (ev.tipo === "texto") {
@@ -234,8 +241,15 @@ async function perguntar(pergunta, gabarito = null) {
           resposta += ev.texto;
           areaTexto.innerHTML = formatar(resposta);
         } else if (ev.tipo === "fim") {
-          detalhes.insertAdjacentHTML("beforeend",
-            `<div class="metricas">${ev.tempo_total}s no total (busca ${ev.tempo_busca}s) · ${ev.consultas_tabela} consulta(s) à tabela · ${ev.tokens_por_segundo} tokens/s · raciocínio ${$("pensar").checked ? "ligado" : "desligado"}</div>`);
+          let metricas;
+          if (ev.origem === "memoria") {
+            metricas = `✅ Resposta validada da memória · ${ev.tempo_total}s`;
+          } else if (ev.origem === "cache") {
+            metricas = `♻️ Resposta reaproveitada (esta pergunta já tinha sido respondida em ${escapar(ev.gerada_em)}) · ${ev.tempo_total}s agora, ${ev.tempo_original}s na primeira vez`;
+          } else {
+            metricas = `${ev.tempo_total}s no total (busca ${ev.tempo_busca}s) · ${ev.consultas_tabela} consulta(s) à tabela · ${ev.tokens_por_segundo} tokens/s · raciocínio ${$("pensar").checked ? "ligado" : "desligado"}`;
+          }
+          detalhes.insertAdjacentHTML("beforeend", `<div class="metricas">${metricas}</div>`);
         } else if (ev.tipo === "erro") {
           throw new Error(ev.mensagem);
         }
