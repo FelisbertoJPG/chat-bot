@@ -1,0 +1,131 @@
+[
+  {
+    "conversa": [
+      {
+        "pergunta": "Quantas consultas de psiquiatria eu posso fazer?",
+        "resposta": "Você pode fazer 12 consultas de psiquiatria por ano, com direito a reconsulta (Art. 12, p. 6)."
+      }
+    ],
+    "pergunta": "E de clínico geral?",
+    "deve_ter": [
+      "clinico geral",
+      "consulta"
+    ],
+    "nao_pode_ter": [
+      "psiquiatr"
+    ]
+  },
+  {
+    "conversa": [
+      {
+        "pergunta": "Quanto eu pago num implante dentário?",
+        "resposta": "O IPASEM paga R$ 2.499,00 por implante e você paga 50% de coparticipação, R$ 1.249,50 (Tabela única, OS 01/2025, código 6300, p. 165)."
+      }
+    ],
+    "pergunta": "E quantos eu posso fazer?",
+    "deve_ter": [
+      "implante",
+      "quant[oa]s\\s+(implantes|eu posso|posso)|numero de implantes|quantidade"
+    ],
+    "nao_pode_ter": [
+      "valor|custa|pagar|preco"
+    ]
+  },
+  {
+    "conversa": [
+      {
+        "pergunta": "Tomei posse há 2 meses e tive uma emergência. O plano me atende?",
+        "resposta": "Sim. A carência de 10 meses não vale para urgência e emergência (Art. 63, §2º, p. 28)."
+      }
+    ],
+    "pergunta": "E se não fosse emergência?",
+    "deve_ter": [
+      "posse|carencia",
+      "eletiv|nao (fosse|for|seja)|sem (ser )?emergencia|normal|comum"
+    ],
+    "nao_pode_ter": [
+      "\\b10 meses"
+    ]
+  },
+  {
+    "conversa": [
+      {
+        "pergunta": "O IPASEM paga vacina?",
+        "resposta": "Não. Vacinas estão entre as exclusões de cobertura (Art. 51, alínea v, p. 23)."
+      }
+    ],
+    "pergunta": "E óculos?",
+    "deve_ter": [
+      "oculos",
+      "paga|cobre|cobert|incluid"
+    ],
+    "nao_pode_ter": [
+      "vacina"
+    ]
+  },
+  {
+    "conversa": [
+      {
+        "pergunta": "O IPASEM cobre cirurgia de catarata?",
+        "resposta": "Sim, a facectomia está na tabela: 1.500 CH, cerca de R$ 1.275,00 de honorários (Tabela única, OS 01/2025, código 30306027, p. 50)."
+      }
+    ],
+    "pergunta": "Tem coparticipação?",
+    "deve_ter": [
+      "catarata|facectomia",
+      "coparticipacao"
+    ],
+    "nao_pode_ter": []
+  },
+  {
+    "conversa": [
+      {
+        "pergunta": "Meu filho solteiro fez 21 anos. Ele pode continuar como dependente?",
+        "resposta": "Sim, até completar 24 anos, pagando 2% da remuneração do segurado por mês (Art. 59-A, p. 26)."
+      }
+    ],
+    "pergunta": "Até quando tenho que fazer o pedido?",
+    "deve_ter": [
+      "filho|dependente",
+      "pedido|solicit|prazo|requer"
+    ],
+    "nao_pode_ter": [
+      "\\b(2|dois)\\s*%"
+    ]
+  },
+  {
+    "conversa": [
+      {
+        "pergunta": "Quantas consultas de psiquiatria eu posso fazer?",
+        "resposta": "Você pode fazer 12 consultas de psiquiatria por ano, com direito a reconsulta (Art. 12, p. 6)."
+      }
+    ],
+    "pergunta": "O plano cobre óculos de grau?",
+    "deve_ter": [
+      "oculos"
+    ],
+    "nao_pode_ter": [
+      "psiquiatr",
+      "consulta"
+    ]
+  },
+  {
+    "conversa": [
+      {
+        "pergunta": "Quantas consultas de psiquiatria eu posso fazer?",
+        "resposta": "Você pode fazer 12 consultas de psiquiatria por ano, com direito a reconsulta (Art. 12, p. 6)."
+      },
+      {
+        "pergunta": "Quanto o IPASEM paga numa polissonografia?",
+        "resposta": "R$ 840,00 pela polissonografia de noite inteira, valor pago ao prestador (Tabela única, OS 01/2025, código 40103528, p. 103)."
+      }
+    ],
+    "pergunta": "Precisa de autorização prévia?",
+    "deve_ter": [
+      "polissonografia"
+    ],
+    "nao_pode_ter": [
+      "psiquiatr"
+    ]
+  }
+]

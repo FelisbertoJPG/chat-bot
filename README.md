@@ -74,6 +74,15 @@ flowchart LR
    "paga vacina?" e "cobre vacinas?" (mesma dúvida), 0,59: semelhança não diz se é a mesma dúvida.
    Respostas já geradas ficam num cache (47 s na primeira vez, instantâneo depois), descartado
    sozinho quando código, dados ou correções mudam.
+8. **Conversa pela reescrita da pergunta, não pelo histórico no prompt.** "E de clínico geral?"
+   vira "Quantas consultas de clínico geral posso fazer?" antes da busca (~5 s a mais). Só essa
+   etapa vê a conversa: mandar o histórico para a resposta aumentaria a leitura do prompt, que já
+   é a parte mais lenta. Daí em diante tudo funciona igual, inclusive a memória e o cache.
+9. **Sem sorteio onde a tarefa é mecânica.** Com a temperatura padrão, duas rodadas iguais do eval
+   discordaram em 5 das 22 decisões de consultar a tabela, e a reescrita deu 5/8 e 4/8 com o mesmo
+   prompt. Decisão e reescrita usam temperatura 0; a resposta mantém o sorteio (o Qwen avisa que
+   sem ele modelos pequenos entram em repetição), mas com semente fixa: a mesma pergunta dá a
+   mesma resposta, e o eval mede só o que mudou.
 
 ## Resultados
 
@@ -94,6 +103,24 @@ flowchart LR
 | Regra como "primeiro passo" | 1 de 2 (na outra, escreveu "vou pesquisar" e parou) |
 | Decisão separada da resposta | **4 de 4**, e nenhuma chamada quando não precisava |
 
+**Respostas** (22 perguntas com gabarito; correção automática por fatos obrigatórios e proibidos,
+mais uma planilha para revisão humana em `evals/resultados/`):
+
+| Configuração | Respostas certas | Decisão da tabela certa | Tempo médio |
+|---|---|---|---|
+| Primeira medição (temperatura padrão) | 18/22 | 16/18 | 42 s |
+| Decisão com temperatura 0 e semente fixa (atual) | **18/22** | **16/18** | **34 s** |
+| Testado e descartado: Ficha do regulamento só quando vem em 1º | 16/22 | 16/18 | 30 s |
+
+Tirar a Ficha (o maior trecho) deixava a resposta 4 s mais rápida, mas em 2 perguntas o modelo
+parou de informar o valor da tabela. Os 4 erros que sobram: resposta vaga sobre o que é o
+regulamento, carência (a busca não traz o Art. 63 quando a pergunta fala em "consulta"),
+psicologia (não consulta a tabela, onde está o limite de 30 sessões) e polissonografia (aplica o
+Art. 22 e divide o valor por 2).
+
+**Conversa** (8 perguntas de continuação, reescrita conferida): **7/8**, ~5 s cada. A que falha:
+"e se não fosse emergência?" perde o "tomei posse há 2 meses" da pergunta anterior.
+
 O passo a passo de cada etapa está no [diário de desenvolvimento](docs/historico.md).
 
 ## Limitações conhecidas
@@ -105,11 +132,16 @@ O passo a passo de cada etapa está no [diário de desenvolvimento](docs/histori
 - **Tabela pode estar desatualizada.** Os valores são reajustados todo ano por ordem de serviço
   (Art. 3º da Res. 33/2024). A versão em uso é a da OS nº 01/2025, vigente desde 01/11/2025: o
   chatbot informa essa data e avisa que pode haver valores mais novos.
-- **Cada pergunta é independente.** O chat não lembra das anteriores.
+- **Conversa curta.** O chat lembra das últimas 3 perguntas, reescrevendo a nova; às vezes a
+  reescrita perde a situação contada antes (idade, tempo de posse). A tela mostra como a pergunta
+  foi entendida, e "Nova conversa" esquece tudo.
+- **A correção automática confere palavras, não entende a resposta.** Ela é uma triagem; a
+  avaliação de verdade é a planilha revisada por gente.
 
 ## Próximos passos
 
-- [ ] Eval das respostas: 22 perguntas com gabarito revisado por servidores da área
+- [ ] Gabarito e planilha das respostas (`evals/resultados/*.csv`) revisados por servidores da área
+- [ ] Corrigir os 4 erros medidos: busca da carência, decisão da psicologia, Art. 22 na polissonografia
 - [ ] Comparar o modelo de 4B com um maior (9B) no servidor dedicado, com os mesmos evals
 - [ ] Incluir a resolução de inscrição de dependentes (citada no Art. 59, não incorporada)
 
@@ -142,6 +174,9 @@ Outros comandos:
 .\.venv\Scripts\python.exe busca.py "carência"                  # só a busca
 .\.venv\Scripts\python.exe tabela.py "implante dentario"        # só a tabela
 .\.venv\Scripts\python.exe avaliar_busca.py                     # eval da busca
+.\.venv\Scripts\python.exe avaliar_respostas.py                 # eval das respostas (~15 min)
+.\.venv\Scripts\python.exe avaliar_respostas.py --so 7,20       # só algumas perguntas
+.\.venv\Scripts\python.exe avaliar_conversa.py                  # eval da reescrita na conversa
 .\.venv\Scripts\python.exe memoria.py                           # confere as respostas validadas
 .\.venv\Scripts\python.exe memoria.py limpar-cache              # apaga as respostas guardadas
 ```
@@ -156,7 +191,7 @@ Outros comandos:
 | `rag.py` | Orquestra busca, decisão (tool calling) e resposta, em streaming |
 | `memoria.py`, `memoria.md` | Respostas validadas por uma pessoa e cache das respostas já geradas |
 | `app.py`, `web/index.html` | Servidor local e interface de chat |
-| `avaliar_busca.py`, `evals/` | Evals: perguntas de teste e gabaritos |
+| `avaliar_busca.py`, `avaliar_respostas.py`, `avaliar_conversa.py`, `evals/` | Evals da busca, das respostas (correção automática + planilha para revisão humana) e da conversa; resultados em `evals/resultados/` |
 | `dados/` | Dados já processados (trechos, índice, tabela, itens descartados) |
 | `docs/` | Diário de desenvolvimento, inventário das resoluções, transcrições |
 | `claude_v0.py` | Primeira versão, com a API do Claude (opcional, precisa de chave) |

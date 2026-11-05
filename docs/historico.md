@@ -11,7 +11,8 @@ O resumo está no [README](../README.md).
 | v1 | RAG 100% local (Ollama): trechos por artigo, embeddings, busca, resposta com modelo pequeno | feito |
 | v1.1 | Resoluções complementares e tabela única de 2024 como ferramenta (tool calling) | feito |
 | tabela 2025 | Fonte da tabela passa a ser a OS 01/2025: citação com data de vigência e páginas do documento oficial | feito |
-| evals | Perguntas com gabarito validado por especialistas, script que mede os acertos | em andamento |
+| evals | Perguntas com gabarito validado por especialistas, script que mede os acertos | script pronto (18/22); falta a validação por especialistas |
+| conversa | Perguntas de continuação pela reescrita da pergunta; decisão e reescrita sem sorteio | feito (7/8) |
 
 ## 1. Escolha do modelo local
 
@@ -134,6 +135,72 @@ de um documento que não é o ato que fixou os valores. O que mudou:
 - O chatbot informa "valores vigentes desde 01/11/2025" em vez de só avisar que a tabela muda.
 - Conferido depois de regerar: só a página mudou nos 4.606 itens; nos trechos, só a nota de
   vigência do implante; busca igual (12/13 e 13/13).
+
+## Eval das respostas, conversa e o sorteio do modelo
+
+### A régua: `avaliar_respostas.py`
+
+Roda as 22 perguntas do gabarito sem memória e sem cache e corrige cada resposta por regex:
+fatos que precisam aparecer ("12 consultas"), coisas proibidas (a regra revogada "duas por mês",
+um valor em R$ inventado) e se a tabela devia ser consultada. Cada rodada gera também uma planilha
+para revisão humana. Antes de confiar na régua, ela corrigiu o próprio gabarito e foi ajustada
+quando puniu respostas certas: "artigos de 53 a 55" não casava com "Art. 53", "Artigo 51" por
+extenso, "paga a metade" em vez de "50%", "internação psiquiátrica ilimitada" caía na proibição
+de "consultas ilimitadas". Para não gastar 15 minutos a cada ajuste, `--recorrigir` aplica os
+critérios novos às respostas já salvas.
+
+Primeira medição: **18/22**, 16/18 decisões da tabela certas, 42 s por resposta.
+
+### O sorteio atrapalhava a medição
+
+A segunda rodada (testando a Ficha só em 1º) mudou coisas que a mudança nem tocava: tempo de
+perguntas não afetadas variou 20 s, uma pergunta não afetada caiu de nota e **5 das 22 decisões de
+consultar a tabela mudaram**. A causa é a temperatura: o modelo sorteia cada palavra. Para o
+usuário isso também é ruim (a mesma pergunta às vezes recebe o valor da tabela, às vezes não).
+
+- Decisão da tabela e reescrita: **temperatura 0** (são tarefas mecânicas).
+- Resposta: mantém o sorteio, porque o Qwen avisa que sem nenhum sorteio modelos pequenos entram em
+  repetição, mas com **semente fixa**. Conferido: a mesma pergunta duas vezes deu texto idêntico
+  (e a segunda levou 9,8 s em vez de 27,8 s, pelo cache de leitura do Ollama).
+
+Com isso, a configuração atual mede **18/22, 16/18, 34 s** e duas rodadas iguais dão o mesmo
+resultado. O tempo ainda varia entre rodadas pelo cache de leitura, então diferenças pequenas de
+tempo não são conclusivas.
+
+### Ficha só quando vem em 1º: testado e descartado
+
+A Ficha do regulamento é o maior trecho (3.703 caracteres). Em 6 das 22 perguntas ela vinha em
+2º-4º lugar numa pergunta específica. A ideia: mandar a Ficha só quando ela vem em 1º (pergunta
+geral) e pôr o próximo artigo no lugar. A busca não perdia nada (13/13), e o texto enviado caía de
+35% a 80% nessas perguntas. Medido com sorteio controlado:
+
+| | Ficha sempre | Ficha só em 1º |
+|---|---|---|
+| Respostas certas | 18/22 | 16/22 |
+| Tempo médio | 34,3 s | 30,2 s |
+
+As duas que pioraram (implante e catarata) são das afetadas: sem a Ficha, o modelo parou de dizer
+o valor da tabela (R$ 2.499, R$ 1.275). Perder o dado principal por 4 s não compensa; a regra saiu.
+
+### Conversa: reescrever a pergunta
+
+O chat passou a lembrar das últimas 3 trocas, sem mandar a conversa para a resposta (seria mais
+texto para ler, e a leitura já é a parte lenta). Uma etapa curta reescreve a pergunta de
+continuação para ela ficar completa, e daí em diante tudo funciona igual. Eval próprio
+(`avaliar_conversa.py`, 8 casos: 6 continuações, 1 pergunta já completa que não pode ser
+"contaminada" pela conversa e 1 com duas trocas).
+
+| Versão do prompt | Resultado |
+|---|---|
+| Primeira, temperatura padrão | 8/8 na régua, mas lendo: "e quantos posso fazer?" (implante) virou "quanto custa" |
+| + "mantenha o que a pessoa quer saber", régua mais rigorosa | 7/8, depois 5/8 e 4/8 na mesma versão (sorteio) |
+| + "traga a situação da pessoa", temperatura 0 | 6/8 nas duas rodadas: pôs "consulta de psiquiatria" numa pergunta sobre óculos |
+| Sem essa regra, temperatura 0 (atual) | **7/8 nas duas rodadas**, ~5 s |
+
+A que falha: "e se não fosse emergência?" perde o "tomei posse há 2 meses". Ajustar o prompt até
+passar seria decorar a prova com 8 casos; fica como limitação, e a tela mostra como a pergunta foi
+entendida. Os exemplos do prompt usam assuntos que não estão nos testes (fisioterapia,
+dermatologia), para não maquiar o resultado.
 
 ## v0: Claude via API (`claude_v0.py`)
 

@@ -36,10 +36,17 @@ def perguntar():
     if not pergunta:
         return {"erro": "pergunta vazia"}, 400
 
+    # Conversa: as últimas trocas, para entender perguntas de continuação ("e de clínico geral?").
+    historico = dados.get("historico") if isinstance(dados.get("historico"), list) else []
+    historico = [
+        {"pergunta": str(t.get("pergunta", ""))[:500], "resposta": str(t.get("resposta", ""))[:2000]}
+        for t in historico[-3:] if isinstance(t, dict)
+    ]
+
     def eventos():
         # Uma linha JSON por evento (formato NDJSON); a página lê linha a linha.
         try:
-            for evento in responder(pergunta, pensar=bool(dados.get("pensar"))):
+            for evento in responder(pergunta, pensar=bool(dados.get("pensar")), historico=historico):
                 yield json.dumps(evento, ensure_ascii=False) + "\n"
         except Exception as erro:  # ex.: Ollama fechado
             yield json.dumps({"tipo": "erro", "mensagem": str(erro)}, ensure_ascii=False) + "\n"

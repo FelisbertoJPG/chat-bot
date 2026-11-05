@@ -29,11 +29,13 @@
   body.com-sugestoes aside { display: block; }
   header { display: flex; align-items: center; gap: 12px; }
   header .titulos { flex: 1; min-width: 0; }
-  #alternar {
+  #alternar, #nova {
     flex-shrink: 0; padding: 6px 10px; border: 1px solid var(--borda); border-radius: 8px;
     background: var(--bg); color: var(--texto); font: inherit; font-size: 13px; cursor: pointer;
   }
-  #alternar:hover { border-color: var(--destaque); }
+  #alternar:hover, #nova:hover { border-color: var(--destaque); }
+  header .titulos { order: 1; }
+  #nova { order: 2; }
   aside h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--suave); margin: 0 0 4px; }
   aside p { font-size: 13px; color: var(--suave); margin: 0 0 16px; }
   .categoria { font-size: 12px; font-weight: 600; color: var(--suave); margin: 16px 0 6px; }
@@ -100,6 +102,7 @@
 <main>
   <header>
     <button id="alternar" type="button" aria-expanded="false">☰ Perguntas de teste</button>
+    <button id="nova" type="button" title="Esquece as perguntas anteriores">＋ Nova conversa</button>
     <div class="titulos">
       <h1>Chatbot do Regulamento de Assistência à Saúde · IPASEM</h1>
       <span id="info">Teste local · carregando...</span>
@@ -109,7 +112,7 @@
   <div id="conversa">
     <div class="vazio" id="vazio">
       Pergunte qualquer coisa sobre o regulamento.<br>
-      Cada pergunta é independente: o chatbot não lembra das anteriores.
+      Pode continuar o assunto (ex.: "e de clínico geral?"): o chatbot lembra das últimas 3 perguntas desta conversa.
     </div>
   </div>
 
@@ -127,6 +130,10 @@
 <script>
 const $ = (id) => document.getElementById(id);
 let ocupado = false;
+// Conversa: as trocas desta tela vão junto com a próxima pergunta digitada, para o chatbot
+// entender continuações. Guarda a pergunta já completa (reescrita), não a digitada.
+let conversa = [];
+const TROCAS_ENVIADAS = 3;
 
 function escapar(texto) {
   return texto.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -192,11 +199,15 @@ async function perguntar(pergunta, gabarito = null) {
   }, 1000);
 
   let resposta = "";
+  let entendida = pergunta;
+  // Perguntas de teste são completas: vão sem a conversa (não precisam de reescrita).
+  const historico = gabarito ? [] : conversa.slice(-TROCAS_ENVIADAS);
+  if (historico.length) status.textContent = status.dataset.base = "Entendendo a pergunta...";
   try {
     const r = await fetch("/api/perguntar", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pergunta, pensar: $("pensar").checked }),
+      body: JSON.stringify({ pergunta, pensar: $("pensar").checked, historico }),
     });
     const leitor = r.body.getReader();
     const decodificador = new TextDecoder();
@@ -227,6 +238,11 @@ async function perguntar(pergunta, gabarito = null) {
           const itens = ev.resumo.map((l) => `<div class="fonte">${escapar(l)}</div>`).join("");
           detalhes.insertAdjacentHTML("beforeend",
             `<details><summary>🔎 Consultou a tabela por "${escapar(termo)}": ${ev.total} resultado(s)</summary>${itens || "<div class='fonte'>Nada encontrado.</div>"}</details>`);
+        } else if (ev.tipo === "reescrita") {
+          entendida = ev.pergunta;
+          status.dataset.base = "Buscando artigos...";
+          detalhes.insertAdjacentHTML("beforeend",
+            `<div class="metricas">💬 Entendi como: “${escapar(ev.pergunta)}” (${ev.segundos}s)</div>`);
         } else if (ev.tipo === "memoria") {
           const itens = ev.itens.map((i) => `
             <div class="fonte"><b>${escapar(i.pergunta)}</b>${i.artigos.length ? ` (${escapar(i.artigos.join(", "))})` : ""}<br>${formatar(i.resposta)}</div>`).join("");
@@ -256,6 +272,7 @@ async function perguntar(pergunta, gabarito = null) {
         rolarParaBaixo();
       }
     }
+    if (resposta.trim()) conversa.push({ pergunta: entendida, resposta });
   } catch (erro) {
     if (status.isConnected) status.remove();
     areaTexto.innerHTML = `<span class="status">Erro: ${escapar(erro.message)}. O Ollama está aberto?</span>`;
@@ -288,6 +305,14 @@ $("pergunta").addEventListener("keydown", (e) => {
     $("form").requestSubmit();
   }
 });
+
+// Nova conversa: esquece as trocas anteriores e limpa a tela.
+$("nova").onclick = () => {
+  if (ocupado) return;
+  conversa = [];
+  $("conversa").innerHTML = `<div class="vazio" id="vazio">Nova conversa. As perguntas anteriores foram esquecidas.</div>`;
+  $("pergunta").focus();
+};
 
 // Barra de perguntas de teste: recolhida por padrão.
 $("alternar").onclick = () => {

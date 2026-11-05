@@ -1,6 +1,9 @@
 """Etapa 3: buscar os artigos, consultar a tabela se preciso e gerar a resposta.
 
 Fluxo de uma pergunta:
+    c. conversa: se há perguntas anteriores, o modelo reescreve a nova para ela ficar completa
+       sozinha ("e de clínico geral?" -> "Quantas consultas de clínico geral posso fazer?").
+       Daí em diante tudo usa a pergunta reescrita; a conversa não vai para a resposta.
     0. memória (memoria.py): resposta validada para a mesma pergunta sai direto; pergunta
        já respondida pelo modelo volta do cache. Nos dois casos, nenhuma etapa abaixo roda.
     1. busca: os 4 artigos mais parecidos com a pergunta (+ respostas validadas ligadas a eles)
@@ -49,6 +52,35 @@ FERRAMENTAS = {"consultar_tabela": consultar_tabela}
 JANELA_CONTEXTO = 16384
 # Quanto tempo o modelo fica na memória depois da última pergunta (o padrão do Ollama é 5 min).
 MANTER_CARREGADO = "60m"
+# Semente fixa na resposta: o texto continua sorteado (temperatura padrão, porque o Qwen avisa
+# que sem sorteio nenhum modelos pequenos entram em repetição), mas a mesma pergunta com o mesmo
+# prompt dá sempre a mesma resposta. Sem isso, duas rodadas iguais do eval variavam tanto quanto
+# a mudança que se queria medir.
+SEMENTE = 42
+
+# Conversa: quantas trocas anteriores entram na reescrita e quanto de cada resposta.
+# Só a reescrita vê a conversa: mandar tudo para a resposta aumentaria a leitura do prompt,
+# que já é a parte mais lenta (~30 s).
+MAX_TROCAS_NA_CONVERSA = 3
+MAX_CARACTERES_RESPOSTA = 400
+
+SYSTEM_REESCRITA = """Você reescreve a última pergunta de uma conversa sobre o plano de saúde \
+do IPASEM para que ela possa ser entendida sozinha, sem a conversa.
+
+- Se a última pergunta já é completa, devolva-a igual.
+- Se ela depende da conversa ("e de clínico geral?", "quanto custa?", "e se for dependente?", \
+"e isso tem coparticipação?"), complete com o assunto que falta, tirado das perguntas e \
+respostas anteriores.
+- Mantenha exatamente o que a pessoa quer saber (quantos, quanto custa, até quando, se \
+precisa de algo): só acrescente o assunto. Não troque "quantos" por "quanto custa".
+- Não responda à pergunta e não acrescente dados das respostas (números, prazos, artigos).
+- Escreva só a pergunta reescrita, em uma linha.
+
+Exemplos:
+Conversa sobre sessões de fisioterapia. Última pergunta: "e quanto custa?" -> \
+Quanto custa uma sessão de fisioterapia?
+Conversa sobre consultas de cardiologia. Última pergunta: "e de dermatologia?" -> \
+Quantas consultas de dermatologia posso fazer?"""
 
 SYSTEM_DECISAO = """Você decide se é preciso consultar a tabela de procedimentos do IPASEM \
 para responder a uma dúvida de beneficiário. A tabela tem procedimentos, exames, cirurgias, \
@@ -164,6 +196,32 @@ def resumo_resultado(resultado: dict) -> list[str]:
     return linhas
 
 
+def reescrever(pergunta: str, historico: list[dict]) -> str:
+    """Pergunta de continuação -> pergunta completa, usando as últimas trocas da conversa.
+    historico: [{"pergunta": ..., "resposta": ...}], da mais antiga para a mais nova."""
+    trocas = [
+        f"Pergunta: {t['pergunta']}\nResposta: {t['resposta'][:MAX_CARACTERES_RESPOSTA]}"
+        for t in historico[-MAX_TROCAS_NA_CONVERSA:] if t.get("pergunta")
+    ]
+    if not trocas:
+        return pergunta
+    r = ollama.chat(
+        model=MODELO_RESPOSTA, think=False, keep_alive=MANTER_CARREGADO,
+        messages=[{"role": "system", "content": SYSTEM_REESCRITA},
+                  {"role": "user", "content": "Conversa até aqui:\n\n" + "\n\n".join(trocas)
+                   + f"\n\nÚltima pergunta: {pergunta}"}],
+        # Temperatura 0: reescrever é tarefa mecânica, a mesma entrada deve dar a mesma saída
+        # (com o padrão do Ollama, duas rodadas do eval deram 5/8 e 4/8 com o mesmo prompt).
+        options={"num_ctx": JANELA_CONTEXTO, "num_predict": 80, "temperature": 0},
+    )
+    nova = (r.message.content or "").strip().splitlines()[0:1]
+    nova = nova[0].strip().strip('"“”').removeprefix("Pergunta reescrita:").strip() if nova else ""
+    # Saída vazia ou que virou resposta/explicação: fica a pergunta original.
+    if not nova or len(nova) > 3 * len(pergunta) + 150:
+        return pergunta
+    return nova
+
+
 # Arquivos que mudam a resposta. Se qualquer um mudar, o cache antigo deixa de valer.
 ARQUIVOS_CODIGO = [Path(__file__).with_name(n) for n in ("rag.py", "busca.py", "tabela.py", "memoria.py")]
 
@@ -184,8 +242,14 @@ def _validada_para_tela(entrada: dict) -> dict:
     return {"pergunta": entrada["pergunta"], "resposta": entrada["resposta"], "artigos": entrada["artigos"]}
 
 
-def responder(pergunta: str, pensar: bool = False) -> Iterator[dict]:
-    """Gera eventos para a interface:
+def responder(pergunta: str, pensar: bool = False, atalhos: bool = True,
+              historico: list[dict] | None = None) -> Iterator[dict]:
+    """atalhos=False pula a resposta validada exata e o cache (nem lê, nem grava): os evals
+    usam assim para medir o modelo, e não a memória.
+    historico: trocas anteriores da conversa, para entender perguntas de continuação.
+
+    Gera eventos para a interface:
+    {"tipo": "reescrita", ...}   -> como a pergunta de continuação foi entendida
     {"tipo": "memoria", ...}     -> respostas validadas usadas ("exata": é a resposta;
                                     "ligada": foram junto com os artigos para o modelo)
     {"tipo": "fontes", ...}      -> artigos encontrados pela busca
@@ -195,6 +259,18 @@ def responder(pergunta: str, pensar: bool = False) -> Iterator[dict]:
     {"tipo": "fim", ...}         -> tempos; "origem" diz de onde veio: memoria, cache ou modelo
     """
     inicio = time.time()
+
+    # c. Conversa: daqui em diante tudo (memória, cache, busca, resposta) usa a pergunta completa.
+    if historico:
+        completa = reescrever(pergunta, historico)
+        if memoria.normalizar(completa) != memoria.normalizar(pergunta):
+            yield {"tipo": "reescrita", "original": pergunta, "pergunta": completa,
+                   "segundos": round(time.time() - inicio, 1)}
+            pergunta = completa
+
+    if not atalhos:
+        yield from _gerar(pergunta, pensar, inicio)
+        return
 
     # 0a. Resposta validada por uma pessoa para esta pergunta: sai direto, sem modelo.
     validada = memoria.resposta_validada(pergunta)
@@ -252,7 +328,9 @@ def _gerar(pergunta: str, pensar: bool, inicio: float) -> Iterator[dict]:
             model=MODELO_RESPOSTA, messages=mensagens, tools=list(FERRAMENTAS.values()),
             think=False, keep_alive=MANTER_CARREGADO,
             # Se não for chamar ferramenta, não precisa escrever nada longo.
-            options={"num_ctx": JANELA_CONTEXTO, "num_predict": 128},
+            # Temperatura 0: chamar ou não a tabela não pode depender de sorteio (medido: com o
+            # padrão, 5 das 22 perguntas do eval mudaram de decisão entre duas rodadas).
+            options={"num_ctx": JANELA_CONTEXTO, "num_predict": 128, "temperature": 0},
         )
         chamadas = decisao.message.tool_calls or []
         if not chamadas:
@@ -285,7 +363,7 @@ def _gerar(pergunta: str, pensar: bool, inicio: float) -> Iterator[dict]:
         stream=True,
         think=pensar,
         keep_alive=MANTER_CARREGADO,
-        options={"num_ctx": JANELA_CONTEXTO},
+        options={"num_ctx": JANELA_CONTEXTO, "seed": SEMENTE},
     ):
         if parte.message.thinking and not avisou_pensando:
             avisou_pensando = True
@@ -314,6 +392,8 @@ if __name__ == "__main__":
     for evento in responder(pergunta, pensar=pensar):
         if evento["tipo"] == "fontes":
             print("Fontes: " + ", ".join(f"{f['id']} ({f['paginas']})" for f in evento["fontes"]) + "\n")
+        elif evento["tipo"] == "reescrita":
+            print(f"[entendi como: {evento['pergunta']}]\n")
         elif evento["tipo"] == "memoria":
             rotulo = "resposta validada" if evento["modo"] == "exata" else "respostas validadas ligadas aos artigos"
             print(f"[memória: {rotulo}] " + " | ".join(i["pergunta"] for i in evento["itens"]) + "\n")
