@@ -221,6 +221,19 @@ escrito a partir do sistema do IPASEM e só será publicado com autorização. S
 não entra no prompt e o resto funciona igual; com ele, o índice (`dados/indice_guia.json`) é
 montado sozinho na primeira pergunta.
 
+**Servidor Linux (teste, Debian 10).** Copie a pasta do projeto para fora da pasta publicada pelo
+Apache (ex.: `/opt/chatbot-ipasem-rag`; sem a `.venv` do Windows) e rode como root:
+
+```bash
+bash scripts/linux/instalar.sh
+```
+
+O script cria o usuário `chatbot`, instala o Ollama e os modelos, um Python 3.12 à parte (o do
+Debian 10 é 3.7; o do sistema não é tocado), o serviço `chatbot` (sobe com a máquina) e a
+configuração do Apache que repassa `http://<servidor>/chatbot/` para o chatbot, que continua
+aceitando só conexões da própria máquina. Para testar numa página do site:
+`<iframe src="/chatbot/" style="width:420px;height:640px;border:0"></iframe>`.
+
 Os dados já processados estão em `dados/`, então os PDFs não são necessários para rodar. Para
 regerar tudo a partir dos documentos originais (públicos no site do IPASEM), salve-os em
 `docs/fontes/` e rode:

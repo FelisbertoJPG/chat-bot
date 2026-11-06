@@ -172,5 +172,19 @@
     "secoes": [
       12
     ]
+  },
+  {
+    "pergunta": "quero tirar uma autroização de exame",
+    "secoes": [
+      5,
+      16
+    ]
+  },
+  {
+    "pergunta": "cade minha carterinha",
+    "secoes": [
+      12,
+      16
+    ]
   }
 ]

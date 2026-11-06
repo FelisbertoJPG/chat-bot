@@ -1,0 +1,2 @@
+# Scripts e configuracoes de Linux precisam de final de linha LF (com CRLF o bash quebra)
+scripts/linux/* text eol=lf

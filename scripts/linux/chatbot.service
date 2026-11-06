@@ -1,0 +1,21 @@
+# Serviço do chatbot (instalado por scripts/linux/instalar.sh, que troca __PASTA__ e __USUARIO__).
+# Comandos úteis:
+#   systemctl status chatbot        está no ar?
+#   journalctl -u chatbot -f        acompanhar o log
+#   systemctl restart chatbot       depois de mudar código ou dados (o índice fica em memória)
+[Unit]
+Description=Chatbot do IPASEM (Flask em 127.0.0.1:5000)
+After=network.target ollama.service
+Wants=ollama.service
+
+[Service]
+User=__USUARIO__
+WorkingDirectory=__PASTA__
+Environment=PYTHONIOENCODING=utf-8
+Environment=PYTHONUNBUFFERED=1
+ExecStart=__PASTA__/.venv/bin/python app.py
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

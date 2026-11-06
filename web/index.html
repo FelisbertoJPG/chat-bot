@@ -172,7 +172,7 @@ function rolarParaBaixo() {
 }
 
 async function carregarSugestoes() {
-  const dados = await (await fetch("/api/sugestoes")).json();
+  const dados = await (await fetch("api/sugestoes")).json();
   $("info").textContent = `Teste local · resposta: ${dados.modelo} · busca: qwen3-embedding:0.6b`;
   let categoriaAtual = "";
   for (const item of dados.perguntas) {
@@ -226,7 +226,7 @@ async function perguntar(pergunta, gabarito = null, semConversa = false) {
   const historico = gabarito || semConversa ? [] : conversa.slice(-TROCAS_ENVIADAS);
   if (historico.length) status.textContent = status.dataset.base = "Entendendo a pergunta...";
   try {
-    const r = await fetch("/api/perguntar", {
+    const r = await fetch("api/perguntar", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ pergunta, pensar: $("pensar").checked, historico }),

@@ -18,6 +18,7 @@ Uso no terminal:
     python guia.py indexar
 """
 
+import difflib
 import hashlib
 import json
 import re
@@ -182,8 +183,24 @@ def ranking(pergunta: str) -> list[dict]:
             for i, (n, p) in sorted(melhor.items(), key=lambda par: -par[1][0])]
 
 
+# Erro de digitação: quem tem pressa escreve "autroização", "carterinha". A regex não pega, a
+# seção certa vinha com nota 0,649 e ficava de fora (sem palavra do assunto, o limiar é 0,70).
+# Cada palavra longa da pergunta é comparada com estas; parecida o bastante (letra trocada,
+# faltando ou sobrando) conta como a palavra certa.
+PALAVRAS_ASSUNTO = [
+    "autorizacao", "autorizacoes", "autorizar", "aplicativo", "carteirinha", "cancelar",
+    "cancelamento", "excluir", "extrato", "comprovante", "rendimentos", "historico", "imprimir",
+    "reimprimir", "cadastro", "emitir", "negado", "negada", "liberar", "liberacao", "senha",
+]
+SEMELHANCA_DIGITACAO = 0.85
+
+
 def fala_do_assunto(pergunta: str) -> bool:
-    return bool(_RE_ASSUNTO.search(normalizar(pergunta)))
+    texto = normalizar(pergunta)
+    if _RE_ASSUNTO.search(texto):
+        return True
+    return any(difflib.get_close_matches(p, PALAVRAS_ASSUNTO, n=1, cutoff=SEMELHANCA_DIGITACAO)
+               for p in texto.split() if len(p) >= 5)
 
 
 def passa(pergunta: str, nota: float) -> bool:

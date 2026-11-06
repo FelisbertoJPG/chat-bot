@@ -334,6 +334,13 @@ As 22 não foram rodadas inteiras: só a 5 passa a receber o guia (continua cert
 ser como antes. Na rede, "quero marcar uma consulta" passou a dizer para emitir a autorização no
 app ou no site e perguntar a especialidade.
 
+**Erro de digitação.** No uso, "quero tirar uma autroização de exame" respondeu só com o Art. 18,
+sem falar do app: a busca achou a seção certa (5, nota 0,649), mas a regex procura "autoriza", e
+sem palavra do assunto o limiar é 0,70. Agora cada palavra longa da pergunta é comparada com uma
+lista (`PALAVRAS_ASSUNTO`: autorização, carteirinha, cancelar, extrato...) e, parecida o bastante
+(semelhança >= 0,85: letra trocada, faltando ou sobrando), conta. Nenhuma das 34 perguntas de fora
+mudou; com 2 casos de digitação no eval, 25/27.
+
 ## v0: Claude via API (`claude_v0.py`)
 
 Versão inicial, antes da decisão de rodar tudo localmente:
