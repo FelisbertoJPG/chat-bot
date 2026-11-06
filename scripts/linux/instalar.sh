@@ -69,7 +69,14 @@ for m in "${MODELOS[@]}"; do
 done
 
 passo "3/5 Python $PYTHON_VERSAO e bibliotecas"
-acha_uv() { ls "$UV_INSTALL_DIR/uv" "$UV_INSTALL_DIR/bin/uv" 2>/dev/null | head -1; }
+# Sem "ls a b | head": com set -e + pipefail, o ls de um caminho que não existe encerrava o
+# script calado logo depois de instalar o uv.
+acha_uv() {
+    for c in "$UV_INSTALL_DIR/uv" "$UV_INSTALL_DIR/bin/uv"; do
+        if [ -x "$c" ]; then echo "$c"; return 0; fi
+    done
+    return 0
+}
 if [ -z "$(acha_uv)" ]; then
     curl -LsSf https://astral.sh/uv/install.sh | env INSTALLER_NO_MODIFY_PATH=1 sh
 fi
