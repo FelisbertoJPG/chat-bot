@@ -13,6 +13,9 @@
 #   5. Apache: /chatbot/ repassa para o 127.0.0.1:5000 (só se o Apache estiver instalado)
 
 set -euo pipefail
+# Root via "su" (sem hífen) fica sem /usr/sbin e /sbin no PATH: useradd, a2enmod, apache2ctl e
+# runuser ficam lá.
+export PATH="$PATH:/usr/local/sbin:/usr/sbin:/sbin"
 
 PASTA="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 USUARIO=chatbot
@@ -45,6 +48,9 @@ chown -R "$USUARIO:$USUARIO" "$PASTA"
 
 passo "2/5 Ollama e modelos"
 if ! command -v ollama >/dev/null; then
+    # O instalador do Ollama vem em .tar.zst; o Debian 10 não traz o zstd.
+    command -v zstd >/dev/null || apt-get install -y zstd \
+        || falha "instale o zstd (apt-get install zstd; no Debian 10 o apt pode precisar do archive.debian.org)"
     curl -fsSL https://ollama.com/install.sh | sh
 fi
 ollama --version || falha "o Ollama não rodou nesta máquina (veja a mensagem acima)"
