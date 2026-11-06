@@ -150,5 +150,88 @@
       "usa_tabela": false,
       "usa_rede": false
     }
+  },
+  {
+    "categoria": "Rede: pressa, só 'contato'",
+    "pergunta": "contato de fono",
+    "resposta_esperada": "Lista fonoaudiólogos de Novo Hamburgo (cidade padrão) com os contatos na tela e diz que, se for outra cidade, é só dizer.",
+    "fontes": "Rede credenciada",
+    "criterios": {
+      "deve_ter": [
+        "fono"
+      ],
+      "nao_pode_ter": [
+        "\\bp\\. ?[a-z]\\b|codigo [a-z]{2,}-|codigo x\\b",
+        "nao encontrei|regulamento nao"
+      ],
+      "usa_tabela": false,
+      "usa_rede": true,
+      "telefones_reais": true,
+      "lista_na_tela": true
+    }
+  },
+  {
+    "categoria": "Rede: especialidade + cidade, sem verbo",
+    "pergunta": "clinico geral novo hamburgo",
+    "resposta_esperada": "Lista clínicos gerais de Novo Hamburgo com os contatos na tela; não fala de valor.",
+    "fontes": "Rede credenciada",
+    "criterios": {
+      "deve_ter": [
+        "clinic[oa] geral",
+        "novo hamburgo"
+      ],
+      "nao_pode_ter": [
+        "\\bp\\. ?[a-z]\\b|codigo [a-z]{2,}-|codigo x\\b",
+        "valor|custa|preco|tabela"
+      ],
+      "usa_tabela": false,
+      "usa_rede": true,
+      "telefones_reais": true,
+      "lista_na_tela": true
+    }
+  },
+  {
+    "categoria": "Rede: marcar sem especialidade",
+    "pergunta": "quero marcar uma consulta",
+    "resposta_esperada": "Pergunta a especialidade (ou o que a pessoa sente) para mostrar os contatos da rede; não fala de valor nem de tabela.",
+    "fontes": "Rede credenciada",
+    "criterios": {
+      "deve_ter": [
+        "especialidade|o que (voce )?(esta )?sent"
+      ],
+      "nao_pode_ter": [
+        "\\bp\\. ?[a-z]\\b|codigo [a-z]{2,}-|codigo x\\b",
+        "valor|codigo|tabela"
+      ],
+      "usa_tabela": false,
+      "usa_rede": false,
+      "telefones_reais": true
+    }
+  },
+  {
+    "categoria": "Rede: lembra a cidade da conversa",
+    "conversa": [
+      {
+        "pergunta": "Quanto custa uma consulta de clínico geral no IPASEM em Novo Hamburgo?",
+        "resposta": "Não encontrei o valor exato da consulta de clínico geral na tabela atualizada."
+      }
+    ],
+    "pergunta": "quero contato de clinico geral, tem na rede credenciada?",
+    "resposta_esperada": "Lista clínicos gerais de Novo Hamburgo (cidade dita antes) com os contatos na tela, sem pedir a cidade de novo.",
+    "fontes": "Rede credenciada",
+    "criterios": {
+      "deve_ter": [
+        "clinic[oa] geral",
+        "novo hamburgo"
+      ],
+      "nao_pode_ter": [
+        "\\bp\\. ?[a-z]\\b|codigo [a-z]{2,}-|codigo x\\b",
+        "onde (voce )?mora|qual (e )?(a )?sua cidade|informe (a )?(sua )?cidade"
+      ],
+      "usa_tabela": false,
+      "usa_rede": true,
+      "telefones_reais": true,
+      "lista_na_tela": true
+    }
   }
 ]

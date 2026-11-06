@@ -27,6 +27,13 @@ prestadores.json
 evals/resultados/*rede*
 evals/resultados/*hospitais*
 
+# Guia do app e do site: escrito a partir do código do sistema do IPASEM. Fica só na máquina até
+# a publicação ser autorizada. O índice e os resultados dos evals do guia copiam o texto dele.
+docs/funcionalidades-segurado.md
+dados/indice_guia.json
+evals/resultados/*guia*
+evals/perguntas_guia_respostas.json
+
 # PDFs originais: são públicos no site do IPASEM e só servem para regerar a pasta dados/
 docs/fontes/*.pdf
 

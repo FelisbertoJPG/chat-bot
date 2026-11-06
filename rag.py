@@ -7,6 +7,8 @@ Fluxo de uma pergunta:
     0. memória (memoria.py): resposta validada para a mesma pergunta sai direto; pergunta
        já respondida pelo modelo volta do cache. Nos dois casos, nenhuma etapa abaixo roda.
     1. busca: os 4 artigos mais parecidos com a pergunta (+ respostas validadas ligadas a eles)
+       + a seção do guia do app e do site (guia.py), se a pergunta for sobre o que o segurado
+       faz sozinho (autorização, 2ª via, cancelar...); os links do app/site vão para a tela
     2. decisão (tool calling): o modelo vê só a pergunta e as ferramentas consultar_tabela
        (valores) e consultar_rede (quem atende, onde; só se o arquivo da rede existir), e
        decide qual chamar e com que argumentos
@@ -38,6 +40,7 @@ from pathlib import Path
 
 import ollama
 
+import guia
 import memoria
 import rede
 from busca import ARQUIVO_INDICE, buscar
@@ -92,13 +95,17 @@ respostas anteriores.
 - Mantenha exatamente o que a pessoa quer saber (quantos, quanto custa, até quando, se \
 precisa de algo): só acrescente o assunto. Não troque "quantos" por "quanto custa".
 - Não responda à pergunta e não acrescente dados das respostas (números, prazos, artigos).
+- Se a última mensagem é só uma especialidade e um lugar (cidade ou bairro), a pessoa quer \
+saber quem atende ali: "Quem atende <especialidade> em <lugar>?". Não pergunte de valor.
 - Escreva só a pergunta reescrita, em uma linha.
 
 Exemplos:
 Conversa sobre sessões de fisioterapia. Última pergunta: "e quanto custa?" -> \
 Quanto custa uma sessão de fisioterapia?
 Conversa sobre consultas de cardiologia. Última pergunta: "e de dermatologia?" -> \
-Quantas consultas de dermatologia posso fazer?"""
+Quantas consultas de dermatologia posso fazer?
+Conversa sobre o valor de um exame. Última pergunta: "dermatologista sao leopoldo" -> \
+Quem atende dermatologia em São Leopoldo?"""
 
 SYSTEM_DECISAO = """Você decide se é preciso consultar a tabela de procedimentos do IPASEM \
 para responder a uma dúvida de beneficiário. A tabela tem procedimentos, exames, cirurgias, \
@@ -122,14 +129,27 @@ otorrinolaringologia; tristeza e ansiedade -> psicologia)."""
 # Pedido claro de prestador ("que especialista procuro?", "onde faço exame?"): a decisão recebe
 # só a ferramenta da rede e um prompt focado. Com as duas ferramentas e o prompt geral, o modelo
 # de 4B respondeu "dor nas costas, que especialista procuro?" sem consultar a rede.
+# Quem tem pressa escreve curto ("contato de fono", "quero marcar consulta"): contato, telefone e
+# endereço também são pedido de prestador (com o prompt geral, "contato de fono" foi respondido
+# com o regulamento). "Marcar" só com "quero/preciso": "posso marcar consulta eletiva?" é regra.
 _RE_PEDE_PRESTADOR = re.compile(
     r"que (especialista|medico|profissional)|qual (especialista|medico|profissional)|"
     r"quem (eu )?(devo )?(procur|atende|consult)|onde (eu )?(faco|fazer|posso fazer|consulto|encontro)|"
-    r"perto de (mim|casa)|mais proxim|rede credenciada|credenciados?\b")
+    r"perto de (mim|casa)|mais proxim|rede credenciada|credenciados?\b|"
+    r"\bcontatos?\b|telefone|whats|endereco|consultorio|"
+    r"(quero|preciso|vou|gostaria de|queria) (marcar|agendar)")
+# Pergunta de valor que cita a cidade ("quanto custa a consulta em NH?") continua sendo da tabela.
+_RE_PEDE_VALOR = re.compile(r"quanto (custa|pago|paga|e|sai)|valor|preco|coparticipa")
+# Sem lugar nenhum (nem na pergunta, nem antes na conversa): a lista sai para Novo Hamburgo, onde
+# está a maior parte da rede e de quem pergunta, e a resposta diz para avisar se for outra cidade.
+# Antes o chatbot só contava quantos havia e pedia a cidade: mais uma volta para quem tem pressa.
+CIDADE_PADRAO = "Novo Hamburgo"
 SYSTEM_DECISAO_REDE = """A pessoa quer saber quem atende ou que especialista procurar no plano \
 de saúde do IPASEM. Chame consultar_rede com a especialidade mais provável para o caso (ex.: \
 zumbido no ouvido -> otorrinolaringologia; tristeza e ansiedade -> psicologia). Para hospitais, \
-use especialidade "hospital". Passe cidade e bairro só se a pessoa disser."""
+use especialidade "hospital". Passe cidade e bairro só se a pessoa disser.
+Se a pessoa não disse especialidade, sintoma nem exame (ex.: "quero marcar uma consulta"), \
+não chame nada e responda apenas: SEM_CONSULTA"""
 
 SYSTEM = f"""Você tira dúvidas de beneficiários do plano de saúde do IPASEM (Novo Hamburgo).
 
@@ -175,7 +195,7 @@ def formatar_paginas(trecho: dict) -> str:
 
 
 def montar_prompt(pergunta: str, artigos: list[dict], consultas: list[dict],
-                  validadas: list[dict] = ()) -> str:
+                  validadas: list[dict] = (), extras: list[str] = ()) -> str:
     blocos = [
         f"[{a['id']} | {formatar_paginas(a)} | {a['secao']}]\n{a['texto']}" for a in artigos
     ]
@@ -188,6 +208,7 @@ def montar_prompt(pergunta: str, artigos: list[dict], consultas: list[dict],
             partes.append(rede.resultado_em_texto(c["argumentos"], c["resultado"]))
         else:
             partes.append(resultado_em_texto(c["termo"], c["resultado"]))
+    partes.extend(extras)
     # A pergunta vem no começo e no fim: o modelo pequeno presta mais atenção nas pontas.
     partes.append(f"Pergunta (repetida): {pergunta}")
     return "\n\n".join(partes)
@@ -289,7 +310,7 @@ def reescrever(pergunta: str, historico: list[dict]) -> str:
 
 # Arquivos que mudam a resposta. Se qualquer um mudar, o cache antigo deixa de valer.
 ARQUIVOS_CODIGO = [Path(__file__).with_name(n)
-                   for n in ("rag.py", "busca.py", "tabela.py", "memoria.py", "rede.py")]
+                   for n in ("rag.py", "busca.py", "tabela.py", "memoria.py", "rede.py", "guia.py")]
 
 
 def impressao_digital() -> str:
@@ -298,7 +319,7 @@ def impressao_digital() -> str:
     h = hashlib.sha256(memoria.versao_memoria().encode())
     for arquivo in ARQUIVOS_CODIGO:
         h.update(arquivo.read_bytes())
-    for arquivo in (ARQUIVO_INDICE, ARQUIVO_TABELA, rede.ARQUIVO):
+    for arquivo in (ARQUIVO_INDICE, ARQUIVO_TABELA, rede.ARQUIVO, guia.ARQUIVO):
         if not arquivo.exists():  # a rede é opcional
             continue
         info = arquivo.stat()
@@ -322,12 +343,14 @@ def responder(pergunta: str, pensar: bool = False, atalhos: bool = True,
     {"tipo": "memoria", ...}     -> respostas validadas usadas ("exata": é a resposta;
                                     "ligada": foram junto com os artigos para o modelo)
     {"tipo": "fontes", ...}      -> artigos encontrados pela busca
+    {"tipo": "guia", ...}        -> seção do guia do app e do site + links (para a tela)
     {"tipo": "pensando"}         -> modelo está raciocinando
     {"tipo": "ferramenta", ...}  -> o modelo consultou a tabela ou a rede credenciada ("nome")
     {"tipo": "texto", ...}       -> pedaço da resposta
     {"tipo": "fim", ...}         -> tempos; "origem" diz de onde veio: memoria, cache ou modelo
     """
     inicio = time.time()
+    original = pergunta
 
     # c. Conversa: daqui em diante tudo (memória, cache, busca, resposta) usa a pergunta completa.
     if historico:
@@ -337,6 +360,16 @@ def responder(pergunta: str, pensar: bool = False, atalhos: bool = True,
                    "segundos": round(time.time() - inicio, 1)}
             pergunta = completa
 
+    # Cidade que a pessoa já disse numa pergunta anterior: a rede usa sem perguntar de novo (ela
+    # tinha dito "novo hamburgo" e, na pergunta seguinte, o chatbot pediu a cidade outra vez).
+    # Só das perguntas, não das respostas: a resposta pode citar cidades que a pessoa não disse.
+    cidade_conversa = None
+    if historico and not (rede.cidade_citada(original) or rede.cidade_citada(pergunta)):
+        for troca in reversed(historico[-MAX_TROCAS_NA_CONVERSA:]):
+            cidade_conversa = rede.cidade_citada(troca.get("pergunta") or "")
+            if cidade_conversa:
+                break
+
     # Emergência: alerta fixo, sempre (também quando a resposta vem da memória ou do cache).
     normalizada = memoria.normalizar(pergunta)
     if re.search(r"suicid|me matar|tirar minha vida", normalizada):
@@ -345,7 +378,7 @@ def responder(pergunta: str, pensar: bool = False, atalhos: bool = True,
         yield {"tipo": "alerta", "mensagem": ALERTA_EMERGENCIA}
 
     if not atalhos:
-        yield from _gerar(pergunta, pensar, inicio)
+        yield from _gerar(pergunta, pensar, inicio, original, cidade_conversa)
         return
 
     # 0a. Resposta validada por uma pessoa para esta pergunta: sai direto, sem modelo.
@@ -358,7 +391,9 @@ def responder(pergunta: str, pensar: bool = False, atalhos: bool = True,
 
     # 0b. Mesma pergunta já respondida pelo modelo, com o mesmo código e os mesmos dados.
     impressao = impressao_digital()
-    guardada = memoria.cache_buscar(pergunta, pensar, impressao)
+    # A cidade lembrada da conversa muda a resposta: entra na chave do cache.
+    chave = f"{pergunta} (cidade da conversa: {cidade_conversa})" if cidade_conversa else pergunta
+    guardada = memoria.cache_buscar(chave, pensar, impressao)
     if guardada:
         yield from guardada["eventos"]
         yield {"tipo": "fim", "origem": "cache", "tempo_total": round(time.time() - inicio, 1),
@@ -368,20 +403,34 @@ def responder(pergunta: str, pensar: bool = False, atalhos: bool = True,
     # Etapas 1 a 3, guardando o que a tela precisa para repetir a resposta depois.
     eventos: list[dict] = []
     texto: list[str] = []
-    for evento in _gerar(pergunta, pensar, inicio):
+    for evento in _gerar(pergunta, pensar, inicio, original, cidade_conversa):
         yield evento
-        if evento["tipo"] in ("memoria", "fontes", "ferramenta"):
+        if evento["tipo"] in ("memoria", "fontes", "guia", "ferramenta"):
             eventos.append(evento)
         elif evento["tipo"] == "texto":
             texto.append(evento["texto"])
         elif evento["tipo"] == "fim" and "".join(texto).strip():
             eventos.append({"tipo": "texto", "texto": "".join(texto)})
-            memoria.cache_guardar(pergunta, pensar, impressao,
+            memoria.cache_guardar(chave, pensar, impressao,
                                   {"eventos": eventos, "tempo_original": evento["tempo_total"]})
 
 
-def _gerar(pergunta: str, pensar: bool, inicio: float) -> Iterator[dict]:
-    """Etapas 1 a 3: busca, decisão e resposta do modelo."""
+def pede_prestador(pergunta: str, original: str = "") -> bool:
+    """Pedido de "quem me atende": vai para a decisão só com a rede. Olha também o que a pessoa
+    escreveu antes da reescrita, porque a reescrita pode perder o pedido ("clinico geral novo
+    hamburgo" virou "Quanto custa uma consulta de clínico geral?"). Especialidade + cidade da
+    rede, sem falar de valor, também é pedido de prestador."""
+    textos = [memoria.normalizar(t) for t in (pergunta, original) if t]
+    if any(_RE_PEDE_PRESTADOR.search(t) for t in textos):
+        return True
+    escrito = textos[-1]  # o que a pessoa escreveu (ou a pergunta, se não houve reescrita)
+    return bool(rede.cidade_citada(escrito)) and not _RE_PEDE_VALOR.search(escrito)
+
+
+def _gerar(pergunta: str, pensar: bool, inicio: float, original: str = "",
+           cidade_conversa: str | None = None) -> Iterator[dict]:
+    """Etapas 1 a 3: busca, decisão e resposta do modelo.
+    original: o que a pessoa escreveu, antes da reescrita. cidade_conversa: cidade dita antes."""
     artigos = buscar(pergunta, k=ARTIGOS_NO_PROMPT)
     tempo_busca = time.time() - inicio
     yield {
@@ -392,6 +441,11 @@ def _gerar(pergunta: str, pensar: bool, inicio: float) -> Iterator[dict]:
             for a in artigos
         ],
     }
+    # Guia do app e do site: a seção que explica como o segurado faz isso sozinho, se a pergunta
+    # for sobre isso (busca separada da dos artigos; os links vão para a tela, não para o modelo).
+    secao_guia = guia.buscar(pergunta)
+    if secao_guia:
+        yield guia.para_tela(secao_guia)
     validadas = memoria.ligadas_aos_artigos([a["id"] for a in artigos])
     if validadas:
         yield {"tipo": "memoria", "modo": "ligada", "itens": [_validada_para_tela(v) for v in validadas]}
@@ -399,7 +453,8 @@ def _gerar(pergunta: str, pensar: bool, inicio: float) -> Iterator[dict]:
     # Etapa 2: decisão. Só a pergunta e a ferramenta, sem os artigos.
     consultas: list[dict] = []
     sistema, ferramentas = SYSTEM_DECISAO, list(FERRAMENTAS.values())
-    if "consultar_rede" in FERRAMENTAS and _RE_PEDE_PRESTADOR.search(memoria.normalizar(pergunta)):
+    rota_rede = "consultar_rede" in FERRAMENTAS and pede_prestador(pergunta, original)
+    if rota_rede:
         # Pedido claro de "quem me atende": só a rede, com uma tarefa só (escolher a especialidade).
         sistema, ferramentas = SYSTEM_DECISAO_REDE, [rede.consultar_rede]
     mensagens = [{"role": "system", "content": sistema}, {"role": "user", "content": pergunta}]
@@ -420,7 +475,14 @@ def _gerar(pergunta: str, pensar: bool, inicio: float) -> Iterator[dict]:
         for chamada in chamadas[: MAX_CONSULTAS - len(consultas)]:
             nome, argumentos = chamada.function.name, dict(chamada.function.arguments or {})
             funcao = FERRAMENTAS.get(nome)
+            lugar = None
+            if nome == "consultar_rede" and not argumentos.get("cidade") and not argumentos.get("bairro"):
+                # Sem lugar: a cidade dita antes na conversa ou, sem ela, a cidade padrão.
+                lugar = ("cidade_da_conversa", cidade_conversa) if cidade_conversa else ("cidade_assumida", CIDADE_PADRAO)
+                argumentos["cidade"] = lugar[1]
             resultado = funcao(**argumentos) if funcao else {"erro": f"ferramenta {nome} não existe"}
+            if lugar and resultado.get("total_encontrado"):
+                resultado[lugar[0]] = lugar[1]
             consultas.append({"nome": nome, "argumentos": argumentos,
                               "termo": argumentos.get("termo", ""), "resultado": resultado})
             yield {"tipo": "ferramenta", "nome": nome, "argumentos": argumentos,
@@ -435,6 +497,11 @@ def _gerar(pergunta: str, pensar: bool, inicio: float) -> Iterator[dict]:
         if any(c["resultado"].get("total_encontrado") for c in consultas):
             break
 
+    # Pediu atendimento sem dizer a especialidade: a resposta pede a especialidade.
+    extras = [guia.texto_para_modelo(secao_guia)] if secao_guia else []
+    if rota_rede and not consultas:
+        extras.append(rede.INSTRUCOES_SEM_ESPECIALIDADE)
+
     # Etapa 3: resposta, com artigos e resultado da tabela juntos.
     avisou_pensando = False
     tokens_gerados = segundos_gerando = 0.0
@@ -442,7 +509,7 @@ def _gerar(pergunta: str, pensar: bool, inicio: float) -> Iterator[dict]:
         model=MODELO_RESPOSTA,
         messages=[
             {"role": "system", "content": SYSTEM},
-            {"role": "user", "content": montar_prompt(pergunta, artigos, consultas, validadas)},
+            {"role": "user", "content": montar_prompt(pergunta, artigos, consultas, validadas, extras)},
         ],
         stream=True,
         think=pensar,
@@ -463,7 +530,8 @@ def _gerar(pergunta: str, pensar: bool, inicio: float) -> Iterator[dict]:
         "tempo_total": round(time.time() - inicio, 1),
         "tempo_busca": round(tempo_busca, 1),
         "tokens_por_segundo": round(tokens_gerados / segundos_gerando, 1) if segundos_gerando else 0,
-        "consultas_tabela": len(consultas),
+        "consultas_tabela": sum(c["nome"] == "consultar_tabela" for c in consultas),
+        "consultas_rede": sum(c["nome"] == "consultar_rede" for c in consultas),
     }
 
 
@@ -480,6 +548,9 @@ if __name__ == "__main__":
             print(f"[entendi como: {evento['pergunta']}]\n")
         elif evento["tipo"] == "alerta":
             print(f"[ALERTA] {evento['mensagem']}\n")
+        elif evento["tipo"] == "guia":
+            print(f"[guia] {evento['id']}: {evento['titulo']} ({evento['similaridade']}) | links na tela: "
+                  + ", ".join(l["nome"] for l in evento["links"]) + "\n")
         elif evento["tipo"] == "memoria":
             rotulo = "resposta validada" if evento["modo"] == "exata" else "respostas validadas ligadas aos artigos"
             print(f"[memória: {rotulo}] " + " | ".join(i["pergunta"] for i in evento["itens"]) + "\n")
@@ -499,4 +570,5 @@ if __name__ == "__main__":
                   f"gerada em {evento['gerada_em']}]")
         elif evento["tipo"] == "fim":
             print(f"\n\n[{evento['tempo_total']}s no total | {evento['tokens_por_segundo']} tokens/s | "
-                  f"{evento['consultas_tabela']} consulta(s) à tabela]")
+                  f"{evento['consultas_tabela']} consulta(s) à tabela | "
+                  f"{evento.get('consultas_rede', 0)} à rede]")

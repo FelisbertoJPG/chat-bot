@@ -75,6 +75,12 @@
     margin-top: 8px; padding: 10px 12px; border-radius: 8px; font-size: 13px;
     background: var(--painel); border: 1px solid var(--destaque);
   }
+  .links-guia { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+  .link-guia {
+    padding: 6px 10px; border: 1px solid var(--destaque); border-radius: 6px;
+    color: var(--destaque); text-decoration: none; font-weight: 600;
+  }
+  .link-guia:hover { background: var(--bg); }
   .prestador { border-top: 1px solid var(--borda); padding: 8px 0; }
   .prestador:first-of-type { border-top: 0; }
   .alerta {
@@ -275,6 +281,16 @@ async function perguntar(pergunta, gabarito = null, semConversa = false) {
               <div class="metricas">Onde há: ${cidades}</div>${cartoes}
               <div class="metricas">${escapar(ev.lista.aviso)}</div></div>`);
           }
+        } else if (ev.tipo === "guia") {
+          // Links direto do código (guia.py): o modelo não escreve endereço de site.
+          detalhes.insertAdjacentHTML("beforeend",
+            `<details><summary>📱 ${escapar(ev.id)}: ${escapar(ev.titulo)} · similaridade ${ev.similaridade.toFixed(3)}</summary>
+             <div class="fonte"><span class="pedaco">Trecho que casou: ${escapar(ev.pedaco)}</span>
+             <pre>${escapar(ev.texto)}</pre></div></details>`);
+          const botoes = ev.links.map((l) =>
+            `<a class="link-guia" href="${escapar(l.url)}" target="_blank" rel="noopener">${escapar(l.nome)}</a>`).join("");
+          detalhes.insertAdjacentHTML("beforeend", `<div class="lista-rede">
+            <b>Faça pelo app ou pelo site do IPASEM</b><div class="links-guia">${botoes}</div></div>`);
         } else if (ev.tipo === "alerta") {
           msg.insertAdjacentHTML("afterbegin", `<div class="alerta">⚠️ ${escapar(ev.mensagem)}</div>`);
         } else if (ev.tipo === "reescrita") {
@@ -311,7 +327,7 @@ async function perguntar(pergunta, gabarito = null, semConversa = false) {
           } else if (ev.origem === "cache") {
             metricas = `♻️ Resposta reaproveitada (esta pergunta já tinha sido respondida em ${escapar(ev.gerada_em)}) · ${ev.tempo_total}s agora, ${ev.tempo_original}s na primeira vez`;
           } else {
-            metricas = `${ev.tempo_total}s no total (busca ${ev.tempo_busca}s) · ${ev.consultas_tabela} consulta(s) à tabela · ${ev.tokens_por_segundo} tokens/s · raciocínio ${$("pensar").checked ? "ligado" : "desligado"}`;
+            metricas = `${ev.tempo_total}s no total (busca ${ev.tempo_busca}s) · ${ev.consultas_tabela} consulta(s) à tabela${ev.consultas_rede ? ` · ${ev.consultas_rede} à rede` : ""} · ${ev.tokens_por_segundo} tokens/s · raciocínio ${$("pensar").checked ? "ligado" : "desligado"}`;
           }
           detalhes.insertAdjacentHTML("beforeend", `<div class="metricas">${metricas}</div>`);
         } else if (ev.tipo === "erro") {

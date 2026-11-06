@@ -1,0 +1,176 @@
+[
+  {
+    "pergunta": "como tiro autorização pra consulta?",
+    "secoes": [
+      3,
+      16
+    ]
+  },
+  {
+    "pergunta": "quero marcar uma consulta",
+    "secoes": [
+      3,
+      16
+    ]
+  },
+  {
+    "pergunta": "preciso de autorização pro dentista",
+    "secoes": [
+      4,
+      16
+    ]
+  },
+  {
+    "pergunta": "como peço autorização de exame de sangue?",
+    "secoes": [
+      5,
+      16
+    ]
+  },
+  {
+    "pergunta": "meu exame foi negado, o que faço?",
+    "secoes": [
+      5,
+      16
+    ]
+  },
+  {
+    "pergunta": "quanto tempo demora pra liberar o exame?",
+    "secoes": [
+      5,
+      16
+    ]
+  },
+  {
+    "pergunta": "perdi a guia da consulta",
+    "secoes": [
+      3,
+      6,
+      16
+    ]
+  },
+  {
+    "pergunta": "como cancelo uma autorização?",
+    "secoes": [
+      7,
+      16
+    ]
+  },
+  {
+    "pergunta": "emiti a autorização errada, dá pra excluir?",
+    "secoes": [
+      7,
+      16
+    ]
+  },
+  {
+    "pergunta": "meu filho quer acessar o app sozinho",
+    "secoes": [
+      8,
+      16
+    ]
+  },
+  {
+    "pergunta": "como libero a consulta do meu dependente?",
+    "secoes": [
+      8,
+      9
+    ]
+  },
+  {
+    "pergunta": "onde vejo as consultas que já fiz?",
+    "secoes": [
+      10
+    ]
+  },
+  {
+    "pergunta": "quanto paguei de coparticipação esse ano?",
+    "secoes": [
+      11,
+      16
+    ]
+  },
+  {
+    "pergunta": "preciso do informe pro imposto de renda",
+    "secoes": [
+      11,
+      14
+    ]
+  },
+  {
+    "pergunta": "cadê minha carteirinha?",
+    "secoes": [
+      12,
+      16
+    ]
+  },
+  {
+    "pergunta": "esqueci a senha do app",
+    "secoes": [
+      2,
+      16
+    ]
+  },
+  {
+    "pergunta": "não recebo o email pra criar senha",
+    "secoes": [
+      2,
+      16
+    ]
+  },
+  {
+    "pergunta": "o app diz que estou em carência",
+    "secoes": [
+      2,
+      16
+    ]
+  },
+  {
+    "pergunta": "ficha cadastral em falta, o que é isso?",
+    "secoes": [
+      2,
+      16
+    ]
+  },
+  {
+    "pergunta": "como mudo meu endereço no cadastro?",
+    "secoes": [
+      13,
+      15
+    ]
+  },
+  {
+    "pergunta": "quanto tempo vale a autorização da consulta?",
+    "secoes": [
+      3,
+      16
+    ]
+  },
+  {
+    "pergunta": "a autorização do dentista vale até quando?",
+    "secoes": [
+      4,
+      16
+    ]
+  },
+  {
+    "pergunta": "comprovante de rendimentos",
+    "secoes": [
+      14
+    ]
+  },
+  {
+    "pergunta": "tem aplicativo do ipasem?",
+    "secoes": [
+      1,
+      2,
+      13
+    ]
+  },
+  {
+    "pergunta": "como troco a foto da carteirinha",
+    "secoes": [
+      12
+    ]
+  }
+]

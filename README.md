@@ -95,6 +95,15 @@ flowchart LR
     telefone e as cidades onde há prestador aparecem na tela direto do cadastro. Sinais de
     emergência (dor no peito, falta de ar, AVC) mostram um alerta fixo (192 / CVV 188) por regra
     no código. O arquivo da rede fica fora do Git: muda o tempo todo e tem dados de profissionais.
+    Quem tem pressa escreve "contato de fono" ou "clinico geral novo hamburgo": essas formas
+    curtas também vão para a rede, a cidade dita antes na conversa é lembrada e, sem cidade
+    nenhuma, a lista sai para Novo Hamburgo (com "se for outra cidade, é só dizer").
+11. **Guia do app e do site: o chatbot manda o segurado fazer sozinho.** "Como cancelo uma
+    autorização?", "perdi a guia", "cadê minha carteirinha?" trazem a seção certa do guia de
+    funcionalidades (menu e passos; o guia fica fora do Git, veja "Como rodar"), e os links do
+    app (Android e iPhone) e do site aparecem na tela, montados pelo código. O guia tem busca
+    própria, separada da dos artigos, para não tirar um artigo certo do prompt, e só entra quando
+    a pergunta fala do assunto (app, autorização, senha...) e é parecida o bastante com uma seção.
 
 ## Resultados
 
@@ -138,16 +147,24 @@ que não vieram dos dados):
 |---|---|---|
 | Modelo copiando os contatos | 4/9 | 8/9 |
 | Contatos na tela + rota direta para a rede em "que especialista / onde faço" | 7/9 (régua nova) | 9/9 |
-| Cidades também na tela, modelo só com totais (atual) | **8/9** | **9/9** |
+| Cidades também na tela, modelo só com totais | **8/9** | **9/9** |
+| +4 casos reais de uso com pressa ("contato de fono", "clinico geral novo hamburgo", "quero marcar uma consulta", cidade dita antes na conversa). Contato/telefone/marcar e especialidade + cidade vão para a rede; cidade lembrada ou Novo Hamburgo (atual) | **13/13** | **13/13** |
 
 O erro que sobra é a polissonografia, o mesmo das 22 perguntas. Com a rede, as 22 continuam em
 18/22 e a pergunta dos hospitais passou a ter resposta (2 em Novo Hamburgo). A decisão ficou
 alguns segundos mais lenta, porque o prompt descreve duas ferramentas.
 
-**Conversa** (11 casos: 6 continuações e 4 perguntas completas que não podem herdar o assunto da
-conversa, uma delas um erro real visto no uso, e "moro no Canudos" depois de perguntar sobre dor
-nas costas): **10/11**, ~5 s quando reescreve. A que falha:
+**Conversa** (13 casos: 6 continuações e 4 perguntas completas que não podem herdar o assunto da
+conversa, uma delas um erro real visto no uso, "moro no Canudos" depois de perguntar sobre dor
+nas costas, e 2 pedidos curtos reais: "contato de fono" e "clinico geral novo hamburgo", que
+virava "quanto custa"): **12/13**, ~5 s quando reescreve. A que falha:
 "e se não fosse emergência?" perde o "tomei posse há 2 meses" da pergunta anterior.
+
+**Guia do app e do site.** Busca (25 perguntas sobre o app/site, e as 22 + as da rede como
+perguntas que não podem puxar o guia): seção certa em **23/25**, e **1 de 34** perguntas de fora
+puxa o guia (a das autorizações odontológicas, que continua certa). Respostas (8 perguntas, a
+régua reprova link escrito pelo modelo e contato que não está no guia): **6/8 certas, 2 parciais**
+(o dentista: a seção 4 só diz "mesmo fluxo da consulta médica", sem os passos).
 
 O passo a passo de cada etapa está no [diário de desenvolvimento](docs/historico.md).
 
@@ -197,6 +214,13 @@ no formato `{"total": ..., "rows": [...]}`). Ela não vai para o Git: muda o tem
 entra, prestadores saem) e tem endereços e telefones de profissionais. Sem o arquivo, a
 ferramenta não é oferecida ao modelo e o resto funciona igual.
 
+**Guia do app e do site (opcional).** Para o chatbot explicar o que o segurado faz sozinho no app
+e no site, salve o guia em `docs/funcionalidades-segurado.md` (seções `## N. Título`; as perguntas
+frequentes, seção 16, uma por linha começando com `- **Pergunta?**`). Ele não vai para o Git: foi
+escrito a partir do sistema do IPASEM e só será publicado com autorização. Sem o arquivo, o guia
+não entra no prompt e o resto funciona igual; com ele, o índice (`dados/indice_guia.json`) é
+montado sozinho na primeira pergunta.
+
 Os dados já processados estão em `dados/`, então os PDFs não são necessários para rodar. Para
 regerar tudo a partir dos documentos originais (públicos no site do IPASEM), salve-os em
 `docs/fontes/` e rode:
@@ -232,9 +256,10 @@ Outros comandos:
 | `tabela.py` | Extrai a tabela única (OS 01/2025) e expõe a ferramenta `consultar_tabela` |
 | `rag.py` | Orquestra busca, decisão (tool calling) e resposta, em streaming |
 | `rede.py` | Rede credenciada (opcional): ferramenta `consultar_rede` por especialidade, cidade e bairro |
+| `guia.py` | Guia do app e do site (opcional, `docs/funcionalidades-segurado.md` fora do Git): busca própria e links na tela |
 | `memoria.py`, `memoria.md` | Respostas validadas por uma pessoa e cache das respostas já geradas |
 | `app.py`, `web/index.html` | Servidor local e interface de chat |
-| `avaliar_busca.py`, `avaliar_respostas.py`, `avaliar_conversa.py`, `evals/` | Evals da busca, das respostas (correção automática + planilha para revisão humana) e da conversa; resultados em `evals/resultados/` |
+| `avaliar_busca.py`, `avaliar_respostas.py`, `avaliar_conversa.py`, `avaliar_guia.py`, `evals/` | Evals da busca, das respostas (correção automática + planilha para revisão humana) e da conversa; resultados em `evals/resultados/` |
 | `dados/` | Dados já processados (trechos, índice, tabela, itens descartados) |
 | `docs/` | Diário de desenvolvimento, inventário das resoluções, transcrições |
 | `claude_v0.py` | Primeira versão, com a API do Claude (opcional, precisa de chave) |

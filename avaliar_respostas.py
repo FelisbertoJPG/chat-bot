@@ -82,6 +82,17 @@ def corrigir(resposta: str, criterios: dict, consultou_tabela: bool, ferramentas
                      if re.sub(r"\D", "", t) not in reais]
         # Toda cidade citada precisa ter vindo da ferramenta ou da pergunta.
         proibido += [f"cidade inventada: {c}" for c in cidades_inventadas(resposta, pergunta, args_rede)]
+    if criterios.get("contatos_do_guia"):
+        # Telefone, e-mail e ramal citados precisam estar escritos no guia do app e do site.
+        import guia
+
+        no_guia = sem_acento(guia.ARQUIVO.read_text(encoding="utf-8"))
+        digitos_guia = re.sub(r"\D", "", no_guia)
+        proibido += [f"contato fora do guia: {c}" for c in
+                     re.findall(r"[\w.]+@[\w.]+\w", texto) + re.findall(r"ramal \d+", texto)
+                     if c not in no_guia]
+        proibido += [f"telefone fora do guia: {f}" for f in RE_TELEFONE.findall(resposta)
+                     if re.sub(r"\D", "", f) not in digitos_guia]
     total = len(criterios["deve_ter"])
     if not faltou and not proibido:
         nota = "OK"
@@ -95,6 +106,8 @@ def corrigir(resposta: str, criterios: dict, consultou_tabela: bool, ferramentas
         checagens.append(criterios["usa_tabela"] == consultou_tabela)
     if criterios.get("usa_rede") is not None:
         checagens.append(criterios["usa_rede"] == ("consultar_rede" in ferramentas))
+    if criterios.get("usa_guia") is not None:
+        checagens.append(criterios["usa_guia"] == ("guia" in ferramentas))
     return {"nota": nota, "faltou": faltou, "proibido": proibido,
             "tabela_ok": all(checagens) if checagens else None}
 
@@ -109,7 +122,8 @@ def rodar(indices: list[int], pensar: bool) -> list[dict]:
         inicio = time.time()
         texto, fontes, termos, ferramentas, fim, alerta, na_tela = [], [], [], [], {}, False, 0
         args_rede = []
-        for ev in responder(p["pergunta"], pensar=pensar, atalhos=False):
+        # "conversa" (opcional): trocas anteriores, como a página manda em historico.
+        for ev in responder(p["pergunta"], pensar=pensar, atalhos=False, historico=p.get("conversa")):
             if ev["tipo"] == "texto":
                 texto.append(ev["texto"])
             elif ev["tipo"] == "fontes":
@@ -123,6 +137,8 @@ def rodar(indices: list[int], pensar: bool) -> list[dict]:
                     na_tela = len(ev["lista"]["prestadores"])
                 if ev["nome"] == "consultar_tabela":
                     termos.append(ev["argumentos"].get("termo", ""))
+            elif ev["tipo"] == "guia":
+                ferramentas.append("guia")  # não é ferramenta, mas a régua confere igual (usa_guia)
             elif ev["tipo"] == "alerta":
                 alerta = True
             elif ev["tipo"] == "fim":

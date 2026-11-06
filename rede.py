@@ -71,6 +71,23 @@ def disponivel() -> bool:
     return ARQUIVO.exists()
 
 
+def cidade_citada(texto: str) -> str | None:
+    """A cidade da rede que aparece no texto ("clinico geral novo hamburgo" -> "NOVO HAMBURGO").
+    Serve para entender pedido curto ("especialidade + cidade" é pedido de quem atende ali) e para
+    lembrar a cidade que a pessoa já disse na conversa, sem perguntar de novo."""
+    dados = carregar()
+    if dados is None:
+        return None
+    texto = f" {normalizar(texto)} "
+    for apelido, nome in APELIDOS_LUGAR.items():
+        texto = texto.replace(f" {apelido} ", f" {nome} ")
+    cidades = {r["_cidade"]: r["cidade_coml1"] for r in dados["linhas"]}
+    for chave in sorted(cidades, key=len, reverse=True):  # "sao leopoldo" antes de "leopoldo"
+        if f" {chave} " in texto:
+            return cidades[chave].title()
+    return None
+
+
 def _casa(termo: str, palavra: str) -> bool:
     """Mesmo começo de palavra: 'cardiologista' ~ 'cardiologia', 'pediatra' ~ 'pediatria'."""
     if len(termo) < 5:
@@ -188,10 +205,18 @@ def resultado_em_texto(argumentos: dict, resultado: dict) -> str:
                       "indicar os mais próximos.")
     else:
         local = resultado["local_pedido"]
-        if resultado.get("cidade_assumida"):
-            linhas.append(f"Cidade não informada; considerada {resultado['cidade_assumida']}.")
-        linhas.append(f"No local pedido ({local['bairro'] or '-'}, {local['cidade']}): "
-                      f"{resultado['no_bairro']} no bairro, {resultado['na_cidade']} na cidade.")
+        if resultado.get("cidade_da_conversa"):
+            linhas.append(f"A pessoa disse antes, na conversa, que é de {resultado['cidade_da_conversa']}.")
+        elif resultado.get("cidade_assumida"):
+            linhas.append(f"Cidade não informada; considerada {resultado['cidade_assumida']}. Mostre "
+                          "a lista e diga que, se a pessoa for de outra cidade, é só dizer qual.")
+        if local["bairro"]:
+            linhas.append(f"No local pedido ({local['bairro']}, {local['cidade']}): "
+                          f"{resultado['no_bairro']} no bairro, {resultado['na_cidade']} na cidade.")
+        else:
+            # Sem bairro, "0 no bairro" fazia o modelo escrever "nenhum no bairro que você pediu";
+            # e avisar "a pessoa não disse o bairro" fazia ele falar só disso (medido nos dois).
+            linhas.append(f"Em {local['cidade']}: {resultado['na_cidade']} prestador(es).")
         if not resultado["prestadores"]:
             linhas.append("Nenhum prestador nessa cidade. As cidades onde há aparecem na tela.")
         for p in resultado["prestadores"]:
@@ -217,6 +242,16 @@ primeiro. NÃO escreva endereço nem telefone: a lista com os contatos aparece n
 abaixo da sua resposta, direto do cadastro. Diga isso à pessoa.
 - Cite só nomes e cidades que estão neste resultado. Não invente prestador. Avise que a rede muda e que é bom confirmar por telefone. Cite como \
 (Rede credenciada, dados de DD/MM/AAAA)."""
+
+# Pedido de atendimento sem especialidade ("quero marcar uma consulta"): não há o que buscar na
+# rede, e o modelo enchia a resposta com "o valor não está nos documentos". Vai junto com o
+# pedido, como as INSTRUCOES, para não mudar o prompt das outras perguntas.
+INSTRUCOES_SEM_ESPECIALIDADE = """A pessoa quer ser atendida, mas não disse a especialidade:
+- Se o guia do app e do site ou os artigos dizem como marcar (a autorização), diga em no máximo \
+2 frases.
+- Depois pergunte a especialidade (ou o que ela está sentindo) para mostrar na tela os contatos \
+da rede credenciada.
+- Não fale de valores, códigos nem da tabela de procedimentos."""
 
 
 def para_tela(resultado: dict) -> dict | None:

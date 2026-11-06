@@ -175,5 +175,40 @@
       "canudos"
     ],
     "nao_pode_ter": []
+  },
+  {
+    "conversa": [
+      {
+        "pergunta": "quero marcar uma consulta",
+        "resposta": "Para marcar a consulta, você precisa ter o encaminhamento do IPASEM. Quanto ao valor e código da consulta, esse dado não está disponível nos documentos."
+      },
+      {
+        "pergunta": "Quem é o contato do fono?",
+        "resposta": "Não encontrei o contato do fono neste regulamento."
+      }
+    ],
+    "pergunta": "clinico geral novo hamburgo",
+    "deve_ter": [
+      "clinic[oa] geral",
+      "novo hamburgo"
+    ],
+    "nao_pode_ter": [
+      "quanto|custa|valor|preco"
+    ]
+  },
+  {
+    "conversa": [
+      {
+        "pergunta": "quero marcar uma consulta",
+        "resposta": "Para marcar a consulta, você precisa ter o encaminhamento do IPASEM. Quanto ao valor e código da consulta, esse dado não está disponível nos documentos."
+      }
+    ],
+    "pergunta": "contato de fono",
+    "deve_ter": [
+      "fono"
+    ],
+    "nao_pode_ter": [
+      "valor|custa|preco"
+    ]
   }
 ]

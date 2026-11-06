@@ -227,7 +227,7 @@ estruturados + ferramenta (`consultar_rede(especialidade, cidade, bairro)`), sem
 significado. Nome popular -> especialidade pelo começo da palavra ("cardiologista" ~
 "cardiologia") e alguns sinônimos ("dentista" -> odontologia); grafias diferentes do mesmo lugar
 unificadas ("H VELHO", "JARDIM MAUÁ"). Sem cidade nem bairro, a ferramenta não lista ninguém: só
-conta, e o chatbot pede o local.
+conta, e o chatbot pedia o local (depois mudou: veja "O usuário com pressa").
 
 | Versão | Rede (9) | O que aconteceu |
 |---|---|---|
@@ -245,6 +245,94 @@ Novo Hamburgo. As 22 continuam em 18/22 com a ferramenta nova.
 Emergência (dor no peito, falta de ar, AVC, ideação suicida): alerta fixo na tela (192, CVV 188)
 por regra no código, e a resposta continua, porque a pergunta pode ser de cobertura ("o plano
 cobre tratamento de AVC?"). Os resultados dos evals da rede ficam fora do Git (citam nomes).
+
+### O usuário com pressa
+
+Uma conversa real, de quem quer o contato e não tem paciência:
+
+| Mensagem | O que o chatbot fez | Por quê |
+|---|---|---|
+| "quero marcar uma consulta" | Regra do encaminhamento + "o valor não está nos documentos" | Ninguém pediu valor; não perguntou a especialidade |
+| "contato de fono" | Procurou no regulamento, "não encontrei o contato" | "Contato" não estava na rota da rede |
+| "clinico geral novo hamburgo" | Consultou a tabela: "não achei o valor" | A reescrita inventou "Quanto custa...?" |
+| "quero contato de clinico geral, tem na rede?" | Rede, mas pediu a cidade de novo | A cidade dita na troca anterior não era lembrada |
+
+"Treinar" o modelo (ajuste fino) não resolveria: os erros não são de conhecimento, são de rota, e
+rota se conserta com regra medida. O que mudou (`rag.pede_prestador`):
+
+- **Rota:** "contato", "telefone", "endereço", "quero/preciso marcar" e especialidade + cidade da
+  rede sem falar de valor vão para a rede. A regra olha o que a pessoa escreveu e a reescrita.
+  "Posso marcar consulta eletiva?" continua sendo pergunta de regra (só "quero/preciso marcar").
+- **Cidade:** sem lugar na pergunta, vale a cidade das perguntas anteriores (nunca das respostas)
+  e, sem nenhuma, Novo Hamburgo, onde está a maior parte da rede. A lista sai na hora e a
+  resposta diz para avisar se for outra cidade.
+- **"Quero marcar" sem especialidade:** a decisão não chama nada e a resposta recebe uma
+  instrução para pedir a especialidade, sem falar de valor nem de tabela.
+- **Reescrita:** regra e exemplo novos: especialidade + lugar é "Quem atende X em Y?".
+
+Resultados: rede 13/13 (os 9 de antes + os 4 da conversa, um deles com a conversa anterior, que
+o eval passou a aceitar), reescrita 12/13 (a que falha é a mesma de antes, "e se não fosse
+emergência?"). Nenhuma das 22 perguntas mudou de rota, então elas não foram rodadas de novo; a
+dos hospitais, que passa pelo prompt da rede, continua certa.
+
+Duas tentativas pioraram, e mostram como o modelo de 4B reage ao que lê: com "0 no bairro" no
+resultado (a pessoa nem falou de bairro), ele escrevia "nenhum no bairro que você pediu"; trocando
+por "a pessoa não disse o bairro", passou a falar só disso e inventou "não há valor coberto". O
+que funcionou foi tirar a frase: sem bairro, o resultado diz só quantos há na cidade.
+
+## Guia do app e do site
+
+O autor escreveu `docs/funcionalidades-segurado.md` a partir do sistema: o que o segurado faz
+sozinho pelo app IPASEM NH Digital e pelo site (autorizações, 2ª via, cancelar, carteirinha,
+extratos, senha, acesso dos dependentes), em 16 seções. A ideia: em vez de só responder,
+mandar a pessoa para o lugar onde ela resolve. Como foi tirado do código do sistema, o guia fica
+fora do Git até a publicação ser autorizada, junto com o índice e os resultados dos evals dele
+(que copiam o texto); sem o arquivo, o chatbot funciona como antes.
+
+**Por que uma busca separada.** Jogar as seções no mesmo índice dos artigos as faria disputar as 4
+vagas do prompt; o Art. 51 (óculos) já vem em 4º. Então `guia.py` tem índice próprio
+(`dados/indice_guia.json`) e manda no máximo 1 seção, e só quando ela serve.
+
+**Quando a seção serve** (`avaliar_guia.py`: 25 perguntas do app/site com a seção esperada; as 22 e
+as da rede como perguntas que não podem puxar o guia):
+
+| Versão | Seção certa em 1º | Positivas que passam | De fora que puxam o guia |
+|---|---|---|---|
+| Uma seção = um pedaço inteiro + itens, limiar 0,60 | 19/25 | 16/25 | 3/34 |
+| Sem o pedaço "seção inteira" (vetor genérico atraía tudo) | 20/25 | 16/25 | 3/34 |
+| Sem a seção 1 na busca (tabela-resumo que ganhava das seções com passo a passo) | 22/25 | 17/25 | 3/34 |
+| Duas pistas: palavra do assunto + nota 0,50, ou nota 0,70 sem palavra | 22/25 | 22/25 | 2/34 |
+| Perguntas frequentes uma a uma; "marcar" só em "quero/preciso marcar" | 21/25 | 20/25 | 1/34 |
+| Pedaços sem e-mail, telefone e negrito; limiar 0,45 com palavra; gabarito corrigido* | **23/25** | **23/25** | **1/34** |
+
+\* "perdi a guia da consulta" trazia a seção 3, que tem "Perdeu a autorização? Use a 2ª via": a
+resposta estava lá, o gabarito é que só aceitava as seções 6 e 16.
+
+Só a nota não separa os dois grupos: perguntas do app começavam em ~0,50, e "meu filho fez 21 anos,
+continua dependente?" (regra) dava 0,65 com "acesso dos dependentes". A palavra do assunto é a
+pista forte; a nota escolhe a seção. A que puxa o guia sem ser do app é "Quantas autorizações
+odontológicas minha família tem por mês?" (traz a seção da autorização odontológica), e a
+resposta continuou certa.
+
+**O "marcar" que inventou carência.** Na primeira versão, "marcar" contava como assunto do guia. A
+pergunta 10 das 22 ("Tomei posse há 6 meses. Já posso marcar uma consulta eletiva?") trouxe a seção
+de acesso, que tem a mensagem de carência do app mas não diz quanto ela dura, e o modelo escreveu
+"a carência é de 12 meses" citando o guia. A pergunta já errava antes (a busca não traz o Art. 63),
+mas passou a errar inventando. Agora "marcar" só conta em "quero/preciso/como marcar".
+
+**Links e contatos.** Os links das lojas e do site ficam no código (`guia.LINKS`) e aparecem na tela
+como botões; os endereços que estão no texto da seção são trocados por "(link na tela)" antes de ir
+para o modelo. A régua (`perguntas_guia_respostas.json`) reprova link escrito pelo modelo e
+telefone, e-mail ou ramal que não estejam no guia.
+
+| Respostas (8) | Certas | O que aconteceu |
+|---|---|---|
+| Primeira versão | 5/8, 2 parciais, 1 erro | "Exame negado, e agora?" trouxe a seção 15 e o modelo inventou "o cancelamento não desmarca a data" |
+| Versão atual | **6/8, 2 parciais** | Parciais: a consulta sem citar o prestador; o dentista (a seção 4 só diz "mesmo fluxo da consulta médica", e o modelo foi buscar implante nos artigos) |
+
+As 22 não foram rodadas inteiras: só a 5 passa a receber o guia (continua certa) e a 10 voltou a
+ser como antes. Na rede, "quero marcar uma consulta" passou a dizer para emitir a autorização no
+app ou no site e perguntar a especialidade.
 
 ## v0: Claude via API (`claude_v0.py`)
 
