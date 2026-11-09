@@ -1,0 +1,23 @@
+{
+  "_leia_me": [
+    "Assuntos que o chatbot NÃO cobre. Pergunta com uma destas palavras recebe a resposta fixa do assunto, na hora e sem passar pelo modelo (que, sem informação, inventava).",
+    "As palavras seguem o formato do vocabulario.json: \"holerite\" (palavra exata), \"consignad*\" (começo de palavra), \"folha de pagamento\" (expressão). Acento e maiúscula não importam.",
+    "Cuidado: palavra daqui que também aparece em pergunta que o chatbot sabe responder esconde essa resposta (ex.: \"folha\" sozinha pegaria \"desconto em folha da coparticipação\"). Prefira expressões.",
+    "Salvou, já vale. Mudou? Rode: python avaliar_assunto.py"
+  ],
+  "assuntos": [
+    {
+      "titulo": "Contracheque e folha de pagamento",
+      "palavras": [
+        "contracheque*",
+        "contra cheque*",
+        "holerite*",
+        "folha de pagamento",
+        "meu salario",
+        "margem consignavel",
+        "consignad*"
+      ],
+      "resposta": "Não tenho informações sobre contracheque. Ele é tratado pelo RH, não pelo app do IPASEM nem por este chatbot."
+    }
+  ]
+}

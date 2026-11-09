@@ -642,6 +642,8 @@ async function perguntar(pergunta, opcoes = {}) {
           let metricas;
           if (ev.origem === "memoria") {
             metricas = `✅ Resposta validada · ${ev.tempo_total}s`;
+          } else if (ev.origem === "fora_do_escopo") {
+            metricas = `ℹ️ Assunto fora do que o chatbot cobre · ${ev.tempo_total}s`;
           } else if (ev.origem === "busca_nome") {
             metricas = `⚡ Busca direta no cadastro da rede · ${ev.tempo_total}s`;
           } else if (ev.origem === "cache") {

@@ -122,7 +122,7 @@ def perguntar():
                 elif tipo == "texto":
                     texto.append(evento["texto"])
                 elif tipo == "fim":
-                    linha.update({k: evento[k] for k in ("origem", "tempo_total", "tempo_busca",
+                    linha.update({k: evento[k] for k in ("origem", "assunto_fora", "tempo_total", "tempo_busca",
                                                          "tokens_por_segundo") if k in evento})
                 yield json.dumps(evento, ensure_ascii=False) + "\n"
         except Exception as erro:  # ex.: Ollama fechado

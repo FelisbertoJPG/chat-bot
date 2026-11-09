@@ -246,6 +246,48 @@ def assunto(pergunta: str) -> str | None:
     return None
 
 
+# --- Fora do escopo (fora_do_escopo.json) -----------------------------------------------------
+# Assuntos que o chatbot NÃO cobre (ex.: contracheque). Sem isso, "não consigo imprimir meu
+# contracheque no app" casou "app"/"imprimir" com o guia, veio a seção de autorização de exames, e o
+# modelo inventou o resto (até uma resolução). Resposta fixa, na hora, sem modelo.
+
+ARQUIVO_FORA = PASTA / "fora_do_escopo.json"
+_fora: dict = {"versao": None, "assuntos": []}
+
+
+def _casa(texto: str, entradas: list[tuple[str, str]]) -> bool:
+    """Alguma entrada (palavra, prefixo* ou expressão) aparece no texto? Sem tolerância a erro de
+    digitação: aqui um falso positivo esconderia uma pergunta que o chatbot sabe responder."""
+    palavras, com_espacos = texto.split(), f" {texto} "
+    return any((tipo == "expressao" and f" {termo} " in com_espacos)
+               or (tipo == "palavra" and termo in palavras)
+               or (tipo == "prefixo" and any(p.startswith(termo) for p in palavras))
+               for tipo, termo in entradas)
+
+
+def fora_do_escopo(*textos: str) -> dict | None:
+    """O assunto fora do escopo de que a pergunta fala ({"titulo", "resposta"}), ou None.
+    Relido quando o arquivo muda; arquivo com erro: avisa no log e fica a versão anterior."""
+    try:
+        versao = ARQUIVO_FORA.stat().st_mtime_ns
+    except FileNotFoundError:
+        return None
+    if versao != _fora["versao"]:
+        _fora["versao"] = versao
+        try:
+            dados = json.loads(ARQUIVO_FORA.read_text(encoding="utf-8"))
+            _fora["assuntos"] = [{"titulo": a["titulo"], "resposta": a["resposta"],
+                                  "entradas": [e for e in map(_ler_entrada, a["palavras"]) if e]}
+                                 for a in dados.get("assuntos", [])]
+        except (ValueError, KeyError, TypeError, AttributeError) as erro:
+            print(f"[guia] {ARQUIVO_FORA.name} com erro, usando a versão anterior: {erro}", file=sys.stderr)
+    normalizados = [normalizar(t) for t in textos if t]
+    for assunto in _fora["assuntos"]:
+        if any(_casa(t, assunto["entradas"]) for t in normalizados):
+            return {"titulo": assunto["titulo"], "resposta": assunto["resposta"]}
+    return None
+
+
 def fala_do_assunto(pergunta: str) -> bool:
     return assunto(pergunta) is not None
 

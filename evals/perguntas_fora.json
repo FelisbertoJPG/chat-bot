@@ -1,0 +1,34 @@
+[
+  {
+    "pergunta": "nao consigo imprimir meu contra-cheque no app do ipasem? qual o problema?",
+    "fora": true
+  },
+  {
+    "pergunta": "cadê meu holerite?",
+    "fora": true
+  },
+  {
+    "pergunta": "contracheque de outubro",
+    "fora": true
+  },
+  {
+    "pergunta": "empréstimo consignado",
+    "fora": true
+  },
+  {
+    "pergunta": "quanto é descontado em folha de coparticipação?",
+    "fora": false
+  },
+  {
+    "pergunta": "o desconto da coparticipação vem na folha?",
+    "fora": false
+  },
+  {
+    "pergunta": "comprovante de rendimentos",
+    "fora": false
+  },
+  {
+    "pergunta": "onde imprimo a segunda via da autorização no app?",
+    "fora": false
+  }
+]

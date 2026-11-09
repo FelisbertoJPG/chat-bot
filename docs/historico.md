@@ -438,6 +438,21 @@ pergunta é curta, parecia continuação) trocou o pedido pelo assunto anterior.
   cidades ditas na conversa e as mostradas pela busca por nome (texto montado pelo código, a partir
   do cadastro); antes reprovava como "cidade inventada".
 
+## Fora do escopo
+
+"Não consigo imprimir meu contra-cheque no app do IPASEM?" (no assunto App) levou 191 s e saiu
+inventada, com até uma "Resolução nº 05/2012". O guia não fala de contracheque: a pergunta tinha
+"app" e "imprimir" (vocabulário), entrou a seção de autorização de exames (nota 0,57) e o modelo
+completou o resto. Contracheque é com o RH, não com o app nem com o plano.
+
+`fora_do_escopo.json` (editado à mão, mesmo formato de palavras do vocabulário) lista assuntos que
+o chatbot NÃO cobre, com uma resposta fixa: sai na hora, sem modelo, antes de tudo
+(`guia.fora_do_escopo`). Primeiro assunto: contracheque e folha de pagamento ("Não tenho
+informações sobre contracheque. Ele é tratado pelo RH, não pelo app do IPASEM nem por este
+chatbot."). Só expressões e palavras específicas, sem tolerância a erro de digitação: "folha"
+sozinha barraria "desconto em folha da coparticipação". `avaliar_assunto.py` confere 8 casos e que
+nenhuma das 127 perguntas dos evals é barrada (8/8, 0 barradas).
+
 ## v0: Claude via API (`claude_v0.py`)
 
 Versão inicial, antes da decisão de rodar tudo localmente:

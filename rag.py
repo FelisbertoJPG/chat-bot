@@ -524,6 +524,14 @@ def responder(pergunta: str, pensar: bool = False, atalhos: bool = True,
     inicio = time.time()
     original = pergunta
 
+    # Assunto que o chatbot não cobre (fora_do_escopo.json): resposta fixa, sem modelo.
+    fora = guia.fora_do_escopo(pergunta)
+    if fora:
+        yield {"tipo": "texto", "texto": fora["resposta"]}
+        yield {"tipo": "fim", "origem": "fora_do_escopo", "assunto_fora": fora["titulo"],
+               "tempo_total": round(time.time() - inicio, 1)}
+        return
+
     # Profissional pelo nome: direto ao cadastro, antes da reescrita e sem modelo.
     nome = pedido_de_nome(pergunta) if rede.disponivel() else None
     if nome:
