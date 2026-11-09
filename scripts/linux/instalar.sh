@@ -97,7 +97,7 @@ chown -R "$USUARIO:$USUARIO" "$PASTA/.venv"
 runuser -u "$USUARIO" -- "$PASTA/.venv/bin/python" -c "import flask, ollama; print('Bibliotecas OK')"
 
 passo "4/5 Serviço systemd (chatbot)"
-sed -e "s#__PASTA__#$PASTA#g" -e "s#__USUARIO__#$USUARIO#g" \
+sed -e "s#__PASTA__#$PASTA#g" -e "s#__USUARIO__#$USUARIO#g" -e "s#__THREADS__#$(nproc)#g" \
     "$PASTA/scripts/linux/chatbot.service" > /etc/systemd/system/chatbot.service
 systemctl daemon-reload
 systemctl enable chatbot >/dev/null 2>&1

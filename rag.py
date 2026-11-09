@@ -32,6 +32,7 @@ Uso no terminal:
 
 import hashlib
 import json
+import os
 import re
 import sys
 import time
@@ -73,6 +74,20 @@ ALERTA_VIDA = ("Se você está pensando em tirar a própria vida, ligue agora pa
 JANELA_CONTEXTO = 16384
 # Quanto tempo o modelo fica na memória depois da última pergunta (o padrão do Ollama é 5 min).
 MANTER_CARREGADO = "60m"
+# Threads na CPU. Sem valor, o Ollama usa uma por núcleo FÍSICO que enxerga. Na VM de testes, os 4
+# vCPUs aparecem como 2 núcleos x 2 threads e ele usava só 2: medido, 6,2 -> 7,6 tokens/s com 4.
+# O serviço da VM define CHATBOT_THREADS (scripts/linux/chatbot.service); no PC fica o padrão.
+# Igual em todas as chamadas: se mudar entre uma e outra, o Ollama recarrega o modelo.
+THREADS = int(os.environ.get("CHATBOT_THREADS") or 0) or None
+
+
+def opcoes(**extra) -> dict:
+    """Opções do Ollama para o modelo de resposta: a mesma janela e as mesmas threads sempre."""
+    resultado = {"num_ctx": JANELA_CONTEXTO, **extra}
+    if THREADS:
+        resultado["num_thread"] = THREADS
+    return resultado
+
 # Semente fixa na resposta: o texto continua sorteado (temperatura padrão, porque o Qwen avisa
 # que sem sorteio nenhum modelos pequenos entram em repetição), mas a mesma pergunta com o mesmo
 # prompt dá sempre a mesma resposta. Sem isso, duas rodadas iguais do eval variavam tanto quanto
@@ -298,7 +313,7 @@ def reescrever(pergunta: str, historico: list[dict]) -> str:
                    + f"\n\nÚltima pergunta: {pergunta}"}],
         # Temperatura 0: reescrever é tarefa mecânica, a mesma entrada deve dar a mesma saída
         # (com o padrão do Ollama, duas rodadas do eval deram 5/8 e 4/8 com o mesmo prompt).
-        options={"num_ctx": JANELA_CONTEXTO, "num_predict": 80, "temperature": 0},
+        options=opcoes(num_predict=80, temperature=0),
     )
     nova = (r.message.content or "").strip().splitlines()[0:1]
     nova = nova[0].strip().strip('"“”').removeprefix("Pergunta reescrita:").strip() if nova else ""
@@ -465,7 +480,7 @@ def _gerar(pergunta: str, pensar: bool, inicio: float, original: str = "",
             # Se não for chamar ferramenta, não precisa escrever nada longo.
             # Temperatura 0: chamar ou não a tabela não pode depender de sorteio (medido: com o
             # padrão, 5 das 22 perguntas do eval mudaram de decisão entre duas rodadas).
-            options={"num_ctx": JANELA_CONTEXTO, "num_predict": 128, "temperature": 0},
+            options=opcoes(num_predict=128, temperature=0),
         )
         chamadas = decisao.message.tool_calls or []
         if not chamadas:
@@ -514,7 +529,7 @@ def _gerar(pergunta: str, pensar: bool, inicio: float, original: str = "",
         stream=True,
         think=pensar,
         keep_alive=MANTER_CARREGADO,
-        options={"num_ctx": JANELA_CONTEXTO, "seed": SEMENTE},
+        options=opcoes(seed=SEMENTE),
     ):
         if parte.message.thinking and not avisou_pensando:
             avisou_pensando = True

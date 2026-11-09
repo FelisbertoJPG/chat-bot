@@ -1,4 +1,4 @@
-# Serviço do chatbot (instalado por scripts/linux/instalar.sh, que troca __PASTA__ e __USUARIO__).
+# Serviço do chatbot (instalado por scripts/linux/instalar.sh, que troca __PASTA__, __USUARIO__ e __THREADS__).
 # Comandos úteis:
 #   systemctl status chatbot        está no ar?
 #   journalctl -u chatbot -f        acompanhar o log
@@ -13,6 +13,8 @@ User=__USUARIO__
 WorkingDirectory=__PASTA__
 Environment=PYTHONIOENCODING=utf-8
 Environment=PYTHONUNBUFFERED=1
+# Threads do Ollama = vCPUs da máquina (o padrão do Ollama usaria só os núcleos físicos)
+Environment=CHATBOT_THREADS=__THREADS__
 ExecStart=__PASTA__/.venv/bin/python app.py
 Restart=on-failure
 RestartSec=5
