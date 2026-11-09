@@ -1,0 +1,55 @@
+{
+  "_leia_me": [
+    "Botões de assunto da tela inicial. Cada opção mostra, NA HORA e sem passar pelo modelo, uma resposta do guia do app e do site (docs/funcionalidades-segurado.md).",
+    "Este arquivo só tem a estrutura: o texto das respostas vem do guia (que fica fora do Git). Sem o guia, os botões não aparecem.",
+    "Em cada opção:",
+    "  \"titulo\"              o texto do botão",
+    "  \"pergunta_frequente\"  uma pergunta da seção 16 do guia, escrita como lá (acento e pontuação não importam): é a resposta curta mostrada",
+    "  \"secao\"               (opcional) número da seção do guia aberta em 'Passo a passo completo'",
+    "Uma das duas precisa existir. Sem pergunta_frequente, a resposta é a seção inteira.",
+    "Assunto SEM \"opcoes\" (ex.: rede): o botão só marca o assunto e a pessoa escreve a pergunta; o chatbot usa o assunto para saber onde procurar (rag.py). \"requer\" diz do que ele depende para aparecer (\"rede\" = prestadores.json) e \"exemplo\" vira a dica na caixa de texto.",
+    "Mudou o guia ou este arquivo? Confira com: python guia.py menu (avisa referência que não existe mais)."
+  ],
+  "assuntos": [
+    {
+      "id": "rede",
+      "icone": "🏥",
+      "titulo": "Quem atende (rede credenciada)",
+      "requer": "rede",
+      "aviso": "Me diga a especialidade (ou o que você está sentindo) e, se quiser, a cidade e o bairro. Eu mostro os contatos da rede credenciada.",
+      "exemplo": "Ex.: psicólogo no Centro de Novo Hamburgo"
+    },
+    {
+      "id": "autorizacoes",
+      "icone": "📄",
+      "titulo": "Autorizações",
+      "aviso": "Eu não vejo nem altero as suas autorizações, mas você mesmo resolve pelo app ou pelo site em poucos passos. Escolha o que precisa:",
+      "opcoes": [
+        {"titulo": "Tirar autorização de consulta", "pergunta_frequente": "Como tiro autorização de consulta?", "secao": "3"},
+        {"titulo": "Autorização de dentista", "pergunta_frequente": "Como tiro autorização de consulta?", "secao": "4"},
+        {"titulo": "Autorização de exame ou fisioterapia", "pergunta_frequente": "Como peço autorização de exame?", "secao": "5"},
+        {"titulo": "Meu exame foi negado", "pergunta_frequente": "Meu exame foi negado, e agora?", "secao": "5"},
+        {"titulo": "Cancelar uma autorização", "pergunta_frequente": "Quero cancelar uma autorização.", "secao": "7"},
+        {"titulo": "Perdi a autorização (2ª via)", "pergunta_frequente": "Perdi a autorização.", "secao": "6"},
+        {"titulo": "Até quando vale a autorização?", "pergunta_frequente": "Quanto tempo vale a autorização?"},
+        {"titulo": "Autorização de dependente (aprovação do titular)", "secao": "9"}
+      ]
+    },
+    {
+      "id": "app",
+      "icone": "📱",
+      "titulo": "App, senha e carteirinha",
+      "aviso": "Escolha o que precisa. As respostas valem para o app IPASEM NH Digital e para o site do segurado:",
+      "opcoes": [
+        {"titulo": "Esqueci a senha", "pergunta_frequente": "Esqueci a senha.", "secao": "2"},
+        {"titulo": "Não recebo o e-mail de senha", "pergunta_frequente": "Não recebo o e-mail de senha / e-mail errado."},
+        {"titulo": "Carteirinha digital", "pergunta_frequente": "Onde está minha carteirinha?", "secao": "12"},
+        {"titulo": "Meu dependente quer acessar sozinho", "pergunta_frequente": "Meu dependente quer acessar sozinho.", "secao": "8"},
+        {"titulo": "Diz que estou em carência", "pergunta_frequente": "Diz que estou em carência.", "secao": "2"},
+        {"titulo": "\"Ficha cadastral em falta\"", "pergunta_frequente": "\"Ficha cadastral em falta\"."},
+        {"titulo": "Quanto paguei de coparticipação / IR", "pergunta_frequente": "Onde vejo quanto paguei de coparticipação?", "secao": "11"},
+        {"titulo": "Comprovante de rendimentos", "secao": "14"}
+      ]
+    }
+  ]
+}

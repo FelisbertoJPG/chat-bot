@@ -123,7 +123,9 @@ def rodar(indices: list[int], pensar: bool) -> list[dict]:
         texto, fontes, termos, ferramentas, fim, alerta, na_tela = [], [], [], [], {}, False, 0
         args_rede = []
         # "conversa" (opcional): trocas anteriores, como a página manda em historico.
-        for ev in responder(p["pergunta"], pensar=pensar, atalhos=False, historico=p.get("conversa")):
+        # "assunto" (opcional, ou --assunto para todas): o botão de assunto escolhido na página.
+        for ev in responder(p["pergunta"], pensar=pensar, atalhos=False, historico=p.get("conversa"),
+                            assunto=p.get("assunto") or ASSUNTO):
             if ev["tipo"] == "texto":
                 texto.append(ev["texto"])
             elif ev["tipo"] == "fontes":
@@ -238,9 +240,14 @@ def recorrigir(arquivo: Path) -> None:
     print(f"Regravado em {base.relative_to(PASTA)}.md / .csv / .json")
 
 
+ASSUNTO = None  # --assunto rede|autorizacoes|app: simula o botão em todas as perguntas da rodada
+
+
 def main() -> None:
-    global ARQUIVO_PERGUNTAS
+    global ARQUIVO_PERGUNTAS, ASSUNTO
     args = sys.argv[1:]
+    if "--assunto" in args:
+        ASSUNTO = args[args.index("--assunto") + 1]
     if "--arquivo" in args:
         ARQUIVO_PERGUNTAS = PASTA / args[args.index("--arquivo") + 1]
     if "--recorrigir" in args:

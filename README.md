@@ -106,6 +106,13 @@ flowchart LR
     a pergunta fala do assunto e é parecida o bastante com uma seção. As palavras do assunto
     ficam em `vocabulario.json`, por bloco ("Autorização": autoriz*, ordem, guia...): quando alguém
     pergunta de um jeito novo, basta acrescentar a palavra lá, sem mexer no código.
+12. **Botões de assunto: o chatbot sabe onde procurar.** A tela inicial oferece assuntos
+    (`menu.json`). Em "Autorizações" e "App, senha e carteirinha", cada opção mostra na hora a
+    resposta do guia, com os links e o passo a passo, **sem passar pelo modelo**. Em "Quem atende
+    (rede credenciada)", o botão marca o assunto e a pergunta digitada vai só para a rede: sem os
+    4 artigos, sem o guia e sem as instruções do regulamento, que a resposta da rede não usa.
+    Medido nas mesmas 11 perguntas da rede: **50,7 s -> 24,0 s**, com 11/11 nas duas rodadas. O
+    assunto aparece perto da caixa de texto e sai com um clique (o ✕ volta ao caminho completo).
 
 ## Resultados
 

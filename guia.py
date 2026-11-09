@@ -250,16 +250,19 @@ def fala_do_assunto(pergunta: str) -> bool:
     return assunto(pergunta) is not None
 
 
-def passa(pergunta: str, nota: float) -> bool:
-    return nota >= (LIMIAR if fala_do_assunto(pergunta) else LIMIAR_SEM_ASSUNTO)
+def passa(pergunta: str, nota: float, assunto_escolhido: bool = False) -> bool:
+    """assunto_escolhido: a pessoa clicou num assunto do app/site (botão), e isso vale como a
+    palavra do assunto."""
+    com_assunto = assunto_escolhido or fala_do_assunto(pergunta)
+    return nota >= (LIMIAR if com_assunto else LIMIAR_SEM_ASSUNTO)
 
 
-def buscar(pergunta: str) -> dict | None:
+def buscar(pergunta: str, assunto_escolhido: bool = False) -> dict | None:
     """A seção do guia que responde à pergunta, ou None se nenhuma passa (ver LIMIAR)."""
     if not disponivel():
         return None
     primeira = ranking(pergunta)[0]
-    return primeira if passa(pergunta, primeira["similaridade"]) else None
+    return primeira if passa(pergunta, primeira["similaridade"], assunto_escolhido) else None
 
 
 def links_da_secao(secao: dict) -> list[dict]:
@@ -280,6 +283,9 @@ INSTRUCOES = f"""Como usar o guia do app e do site:
 fica no menu e os passos principais, em poucas frases.
 - Não escreva endereço de site nem link: os links do app e do site aparecem na tela, logo abaixo \
 da sua resposta. Diga isso à pessoa.
+- Você não vê nem altera autorizações, cadastro ou dados da pessoa. Se ela der um número de \
+autorização, diga que não consegue fazer por aqui e que ela mesma faz pelo app ou pelo site.
+- Fale do app e do site; "{FONTE_CITACAO}" é só o nome da fonte, para a citação.
 - Regras de cobertura, limites de consultas e valores continuam vindo dos artigos e da tabela.
 - Cite como ({FONTE_CITACAO}, seção N)."""
 
@@ -297,6 +303,67 @@ def para_tela(secao: dict) -> dict:
             "texto": secao["texto"], "links": links_da_secao(secao)}
 
 
+# --- Botões de assunto (menu.json) -----------------------------------------------------------
+# Respostas instantâneas: o botão mostra o texto do guia como está, sem passar pelo modelo. Para
+# perguntas de autorização e de app isso é mais certo e mais rápido ("quero cancelar 3122505"
+# levou 233 s na VM e o modelo tomou o número da autorização por código de procedimento).
+
+ARQUIVO_MENU = PASTA / "menu.json"
+
+
+def _resposta_da_frequente(unidade: dict) -> str:
+    """'- **Perdi a autorização.** Gerenciamento...' -> 'Gerenciamento...'"""
+    return re.sub(r"^- \*\*.+?\*\*\s*", "", unidade["texto"]).strip()
+
+
+def menu(recursos: set[str] = frozenset()) -> dict:
+    """Os assuntos de menu.json com o texto do guia já resolvido, para a página.
+    Dois tipos de assunto: com "opcoes" (respostas do guia na hora; precisam do guia) e sem
+    opções, com "requer" (ex.: "rede"): o botão só marca o assunto e a pessoa escreve a pergunta;
+    aparece se o recurso estiver em `recursos`. "problemas" lista referências que não existem."""
+    if not ARQUIVO_MENU.exists():
+        return {"assuntos": [], "problemas": []}
+    estrutura = json.loads(ARQUIVO_MENU.read_text(encoding="utf-8"))
+    unidades = carregar_secoes() if disponivel() else []
+    secoes = {s["numero"]: s for s in unidades if s["numero"] not in POR_ITEM}
+    frequentes = {normalizar(s["titulo"].split(":", 1)[-1]): s for s in unidades if s["numero"] in POR_ITEM}
+    assuntos, problemas = [], []
+    for assunto in estrutura.get("assuntos", []):
+        campos = {k: assunto.get(k, "") for k in ("id", "icone", "titulo", "aviso", "exemplo")}
+        if "opcoes" not in assunto:  # assunto de pergunta livre
+            if assunto.get("requer") in recursos:
+                assuntos.append(campos | {"opcoes": []})
+            continue
+        if not unidades:
+            continue  # sem o guia, os assuntos de respostas prontas não aparecem
+        opcoes = []
+        for opcao in assunto.get("opcoes", []):
+            secao = secoes.get(str(opcao.get("secao", "")).strip()) if opcao.get("secao") else None
+            frequente = frequentes.get(normalizar(opcao.get("pergunta_frequente", ""))) \
+                if opcao.get("pergunta_frequente") else None
+            if opcao.get("secao") and not secao:
+                problemas.append(f"{assunto['titulo']} > {opcao['titulo']}: seção {opcao['secao']} não existe no guia")
+            if opcao.get("pergunta_frequente") and not frequente:
+                problemas.append(f"{assunto['titulo']} > {opcao['titulo']}: pergunta frequente "
+                                 f"{opcao['pergunta_frequente']!r} não existe na seção 16 do guia")
+            if not secao and not frequente:
+                continue  # sem nada para mostrar: o botão não aparece
+            fonte = frequente or secao
+            opcoes.append({
+                "titulo": opcao["titulo"],
+                "resposta": _resposta_da_frequente(frequente) if frequente else secao["texto"],
+                "fonte": fonte["id"],
+                "passo_a_passo": ({"id": secao["id"], "titulo": secao["titulo"], "texto": secao["texto"]}
+                                  if secao and frequente else None),
+                "links": links_da_secao(secao or frequente),
+            })
+        if opcoes:
+            assuntos.append(campos | {"opcoes": opcoes})
+    for p in problemas:
+        print(f"[guia] menu.json: {p}", file=sys.stderr)
+    return {"assuntos": assuntos, "problemas": problemas}
+
+
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         print(__doc__)
@@ -304,6 +371,16 @@ if __name__ == "__main__":
     if sys.argv[1] == "indexar":
         indexar()
         sys.exit(0)
+    if sys.argv[1] == "menu":
+        # Confere o menu.json contra o guia: o que cada botão mostra e o que está quebrado.
+        m = menu({"rede"})
+        for a in m["assuntos"]:
+            print(f"{a['icone']} {a['titulo']}" + ("" if a["opcoes"] else "  (pergunta livre: só marca o assunto)"))
+            for o in a["opcoes"]:
+                extra = f" + passo a passo ({o['passo_a_passo']['id']})" if o["passo_a_passo"] else ""
+                print(f"   [{o['titulo']}] -> {o['fonte']}{extra}: {o['resposta'][:70]}...")
+        print(f"\n{len(m['problemas'])} problema(s)" + "".join(f"\n  - {p}" for p in m["problemas"]))
+        sys.exit(1 if m["problemas"] else 0)
     if sys.argv[1] == "vocabulario":
         # Confere o vocabulario.json: um JSON quebrado para aqui, com a linha do erro.
         json.loads(ARQUIVO_VOCABULARIO.read_text(encoding="utf-8"))

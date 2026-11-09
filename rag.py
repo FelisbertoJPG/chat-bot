@@ -204,6 +204,15 @@ continuam valendo.
 - Cite a tabela como ({FONTE_CITACAO}, código X, p. Y)."""
 
 
+# Botões de assunto (menu.json). Com "rede", a resposta recebe só o resultado da rede e estas
+# instruções curtas, no lugar do SYSTEM inteiro (~700 tokens sobre artigos e tabela que ela não usa):
+# as regras de como responder a rede já vão junto com o resultado (rede.INSTRUCOES).
+ASSUNTOS_DO_GUIA = {"autorizacoes", "app"}
+SYSTEM_SO_REDE = """Você ajuda beneficiários do plano de saúde do IPASEM (Novo Hamburgo) a encontrar \
+quem atende na rede credenciada. Use só o resultado da consulta à rede que vem com a pergunta e \
+siga as instruções que vêm com ele. Responda em português simples, em no máximo 5 frases."""
+
+
 def formatar_paginas(trecho: dict) -> str:
     inicio, fim = trecho["pagina_inicio"], trecho["pagina_fim"]
     return f"p. {inicio}" if inicio == fim else f"p. {inicio}-{fim}"
@@ -214,7 +223,9 @@ def montar_prompt(pergunta: str, artigos: list[dict], consultas: list[dict],
     blocos = [
         f"[{a['id']} | {formatar_paginas(a)} | {a['secao']}]\n{a['texto']}" for a in artigos
     ]
-    partes = [f"Pergunta: {pergunta}", "Artigos do regulamento que podem ajudar:", "\n\n".join(blocos)]
+    partes = [f"Pergunta: {pergunta}"]
+    if blocos:  # sem artigos (assunto "rede"), nem o rótulo
+        partes += ["Artigos do regulamento que podem ajudar:", "\n\n".join(blocos)]
     if validadas:
         partes.append("Respostas validadas ligadas a esses artigos:\n\n" + "\n\n".join(
             f"Pergunta validada: {v['pergunta']}\nResposta correta: {v['resposta']}" for v in validadas))
@@ -347,10 +358,12 @@ def _validada_para_tela(entrada: dict) -> dict:
 
 
 def responder(pergunta: str, pensar: bool = False, atalhos: bool = True,
-              historico: list[dict] | None = None) -> Iterator[dict]:
+              historico: list[dict] | None = None, assunto: str | None = None) -> Iterator[dict]:
     """atalhos=False pula a resposta validada exata e o cache (nem lê, nem grava): os evals
     usam assim para medir o modelo, e não a memória.
     historico: trocas anteriores da conversa, para entender perguntas de continuação.
+    assunto: o botão de assunto que a pessoa escolheu (menu.json: "rede", "autorizacoes",
+    "app"); diz ao chatbot onde procurar e o que pular (ver _gerar). None: o caminho completo.
 
     Gera eventos para a interface:
     {"tipo": "reescrita", ...}   -> como a pergunta de continuação foi entendida
@@ -393,7 +406,7 @@ def responder(pergunta: str, pensar: bool = False, atalhos: bool = True,
         yield {"tipo": "alerta", "mensagem": ALERTA_EMERGENCIA}
 
     if not atalhos:
-        yield from _gerar(pergunta, pensar, inicio, original, cidade_conversa)
+        yield from _gerar(pergunta, pensar, inicio, original, cidade_conversa, assunto)
         return
 
     # 0a. Resposta validada por uma pessoa para esta pergunta: sai direto, sem modelo.
@@ -406,8 +419,9 @@ def responder(pergunta: str, pensar: bool = False, atalhos: bool = True,
 
     # 0b. Mesma pergunta já respondida pelo modelo, com o mesmo código e os mesmos dados.
     impressao = impressao_digital()
-    # A cidade lembrada da conversa muda a resposta: entra na chave do cache.
-    chave = f"{pergunta} (cidade da conversa: {cidade_conversa})" if cidade_conversa else pergunta
+    # A cidade lembrada da conversa e o assunto escolhido mudam a resposta: entram na chave do cache.
+    chave = pergunta + (f" (cidade da conversa: {cidade_conversa})" if cidade_conversa else "") \
+        + (f" (assunto: {assunto})" if assunto else "")
     guardada = memoria.cache_buscar(chave, pensar, impressao)
     if guardada:
         yield from guardada["eventos"]
@@ -418,7 +432,7 @@ def responder(pergunta: str, pensar: bool = False, atalhos: bool = True,
     # Etapas 1 a 3, guardando o que a tela precisa para repetir a resposta depois.
     eventos: list[dict] = []
     texto: list[str] = []
-    for evento in _gerar(pergunta, pensar, inicio, original, cidade_conversa):
+    for evento in _gerar(pergunta, pensar, inicio, original, cidade_conversa, assunto):
         yield evento
         if evento["tipo"] in ("memoria", "fontes", "guia", "ferramenta"):
             eventos.append(evento)
@@ -443,10 +457,15 @@ def pede_prestador(pergunta: str, original: str = "") -> bool:
 
 
 def _gerar(pergunta: str, pensar: bool, inicio: float, original: str = "",
-           cidade_conversa: str | None = None) -> Iterator[dict]:
+           cidade_conversa: str | None = None, assunto: str | None = None) -> Iterator[dict]:
     """Etapas 1 a 3: busca, decisão e resposta do modelo.
-    original: o que a pessoa escreveu, antes da reescrita. cidade_conversa: cidade dita antes."""
-    artigos = buscar(pergunta, k=ARTIGOS_NO_PROMPT)
+    original: o que a pessoa escreveu, antes da reescrita. cidade_conversa: cidade dita antes.
+    assunto: botão escolhido. "rede": só a rede, sem artigos, guia nem as instruções do
+    regulamento (a resposta da rede não usa nada disso). "autorizacoes"/"app": o guia entra mesmo
+    sem palavra do assunto, e a tabela não é oferecida."""
+    so_rede = assunto == "rede" and "consultar_rede" in FERRAMENTAS
+    do_guia = assunto in ASSUNTOS_DO_GUIA
+    artigos = [] if so_rede else buscar(pergunta, k=ARTIGOS_NO_PROMPT)
     tempo_busca = time.time() - inicio
     yield {
         "tipo": "fontes",
@@ -458,7 +477,7 @@ def _gerar(pergunta: str, pensar: bool, inicio: float, original: str = "",
     }
     # Guia do app e do site: a seção que explica como o segurado faz isso sozinho, se a pergunta
     # for sobre isso (busca separada da dos artigos; os links vão para a tela, não para o modelo).
-    secao_guia = guia.buscar(pergunta)
+    secao_guia = None if so_rede else guia.buscar(pergunta, assunto_escolhido=do_guia)
     if secao_guia:
         yield guia.para_tela(secao_guia)
     validadas = memoria.ligadas_aos_artigos([a["id"] for a in artigos])
@@ -468,12 +487,18 @@ def _gerar(pergunta: str, pensar: bool, inicio: float, original: str = "",
     # Etapa 2: decisão. Só a pergunta e a ferramenta, sem os artigos.
     consultas: list[dict] = []
     sistema, ferramentas = SYSTEM_DECISAO, list(FERRAMENTAS.values())
-    rota_rede = "consultar_rede" in FERRAMENTAS and pede_prestador(pergunta, original)
+    rota_rede = so_rede or ("consultar_rede" in FERRAMENTAS and pede_prestador(pergunta, original))
     if rota_rede:
         # Pedido claro de "quem me atende": só a rede, com uma tarefa só (escolher a especialidade).
         sistema, ferramentas = SYSTEM_DECISAO_REDE, [rede.consultar_rede]
+    elif (secao_guia and (do_guia or guia.fala_do_assunto(pergunta))
+          and not _RE_PEDE_VALOR.search(memoria.normalizar(pergunta))):
+        # Pergunta do app ou do site, sem falar de valor: nenhuma ferramenta, e a decisão nem roda.
+        # Em "quero cancelar 3122505" o modelo tomou o número da autorização por código de
+        # procedimento e consultou a tabela à toa (0 resultados, 233 s no total na VM).
+        ferramentas = []
     mensagens = [{"role": "system", "content": sistema}, {"role": "user", "content": pergunta}]
-    while len(consultas) < MAX_CONSULTAS:
+    while ferramentas and len(consultas) < MAX_CONSULTAS:
         decisao = ollama.chat(
             model=MODELO_RESPOSTA, messages=mensagens, tools=ferramentas,
             think=False, keep_alive=MANTER_CARREGADO,
@@ -523,7 +548,7 @@ def _gerar(pergunta: str, pensar: bool, inicio: float, original: str = "",
     for parte in ollama.chat(
         model=MODELO_RESPOSTA,
         messages=[
-            {"role": "system", "content": SYSTEM},
+            {"role": "system", "content": SYSTEM_SO_REDE if so_rede else SYSTEM},
             {"role": "user", "content": montar_prompt(pergunta, artigos, consultas, validadas, extras)},
         ],
         stream=True,

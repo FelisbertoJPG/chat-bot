@@ -12,7 +12,11 @@ from pathlib import Path
 
 from flask import Flask, Response, request, send_from_directory
 
-from rag import MODELO_RESPOSTA, responder
+import guia
+import rede
+from rag import ASSUNTOS_DO_GUIA, MODELO_RESPOSTA, responder
+
+ASSUNTOS = ASSUNTOS_DO_GUIA | {"rede"}
 
 PASTA = Path(__file__).parent
 app = Flask(__name__)
@@ -29,6 +33,12 @@ def sugestoes():
     return {"modelo": MODELO_RESPOSTA, "perguntas": perguntas}
 
 
+@app.get("/api/menu")
+def menu():
+    # Botões de assunto com as respostas do guia já resolvidas (sem o guia: lista vazia).
+    return guia.menu({"rede"} if rede.disponivel() else set())
+
+
 @app.post("/api/perguntar")
 def perguntar():
     dados = request.get_json()
@@ -43,10 +53,14 @@ def perguntar():
         for t in historico[-3:] if isinstance(t, dict)
     ]
 
+    # Assunto do botão (menu.json): só os conhecidos; qualquer outro valor vira o caminho completo.
+    assunto = dados.get("assunto") if dados.get("assunto") in ASSUNTOS else None
+
     def eventos():
         # Uma linha JSON por evento (formato NDJSON); a página lê linha a linha.
         try:
-            for evento in responder(pergunta, pensar=bool(dados.get("pensar")), historico=historico):
+            for evento in responder(pergunta, pensar=bool(dados.get("pensar")), historico=historico,
+                                    assunto=assunto):
                 yield json.dumps(evento, ensure_ascii=False) + "\n"
         except Exception as erro:  # ex.: Ollama fechado
             yield json.dumps({"tipo": "erro", "mensagem": str(erro)}, ensure_ascii=False) + "\n"

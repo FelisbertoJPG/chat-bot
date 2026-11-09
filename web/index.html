@@ -29,13 +29,15 @@
   body.com-sugestoes aside { display: block; }
   header { display: flex; align-items: center; gap: 12px; }
   header .titulos { flex: 1; min-width: 0; }
-  #alternar, #nova {
+  #alternar, #nova, #abrir-assuntos {
     flex-shrink: 0; padding: 6px 10px; border: 1px solid var(--borda); border-radius: 8px;
     background: var(--bg); color: var(--texto); font: inherit; font-size: 13px; cursor: pointer;
   }
-  #alternar:hover, #nova:hover { border-color: var(--destaque); }
+  #alternar:hover, #nova:hover, #abrir-assuntos:hover { border-color: var(--destaque); }
+  #abrir-assuntos[hidden] { display: none; }
   header .titulos { order: 1; }
-  #nova { order: 2; }
+  #abrir-assuntos { order: 2; }
+  #nova { order: 3; }
   aside h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--suave); margin: 0 0 4px; }
   aside p { font-size: 13px; color: var(--suave); margin: 0 0 16px; }
   .categoria { font-size: 12px; font-weight: 600; color: var(--suave); margin: 16px 0 6px; }
@@ -75,6 +77,20 @@
     margin-top: 8px; padding: 10px 12px; border-radius: 8px; font-size: 13px;
     background: var(--painel); border: 1px solid var(--destaque);
   }
+  .assuntos, .opcoes-menu { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .vazio .assuntos { justify-content: center; margin-top: 16px; }
+  .assunto, .opcao-menu {
+    padding: 8px 12px; border: 1px solid var(--borda); border-radius: 8px; background: var(--bg);
+    color: var(--texto); font: inherit; font-size: 14px; cursor: pointer; text-align: left;
+  }
+  .assunto { font-weight: 600; }
+  .assunto:hover, .opcao-menu:hover { border-color: var(--destaque); }
+  .chip-assunto {
+    display: inline-flex; align-items: center; gap: 6px; margin-right: 12px; padding: 2px 4px 2px 10px;
+    border: 1px solid var(--destaque); border-radius: 999px; color: var(--texto);
+  }
+  .chip-assunto[hidden] { display: none; }
+  .chip-assunto button { border: 0; background: none; color: var(--suave); cursor: pointer; font: inherit; }
   .links-guia { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
   .link-guia {
     padding: 6px 10px; border: 1px solid var(--destaque); border-radius: 6px;
@@ -124,6 +140,7 @@
 <main>
   <header>
     <button id="alternar" type="button" aria-expanded="false">☰ Perguntas de teste</button>
+    <button id="abrir-assuntos" type="button" hidden title="Respostas rápidas sobre o app e o site">📋 Assuntos</button>
     <button id="nova" type="button" title="Esquece as perguntas anteriores">＋ Nova conversa</button>
     <div class="titulos">
       <h1>Chatbot do Regulamento de Assistência à Saúde · IPASEM</h1>
@@ -144,6 +161,9 @@
       <button class="enviar" id="enviar" type="submit">Enviar</button>
     </div>
     <div class="opcoes">
+      <span class="chip-assunto" id="chip-assunto" hidden title="O chatbot procura só neste assunto">
+        <span id="chip-texto"></span><button type="button" id="tirar-assunto" title="Tirar o assunto: o chatbot procura em tudo">✕</button>
+      </span>
       <label><input type="checkbox" id="pensar"> Pensar antes de responder (mais preciso, bem mais lento)</label>
     </div>
   </form>
@@ -165,6 +185,105 @@ function escapar(texto) {
 function formatar(texto) {
   return escapar(texto).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/\n/g, "<br>");
 }
+
+// Texto do guia (markdown simples): títulos ###, linhas de tabela e **negrito**.
+function formatarGuia(texto) {
+  const linhas = texto.split("\n")
+    .filter((l) => !/^\|[-| ]+\|$/.test(l.trim()))  // linha separadora de tabela
+    .map((l) => {
+      if (/^#{2,4} /.test(l)) return `**${l.replace(/^#+ /, "")}**`;
+      if (/^\|.*\|$/.test(l.trim())) return "• " + l.trim().slice(1, -1).split("|").map((c) => c.trim()).join(" — ");
+      return l;
+    });
+  return formatar(linhas.join("\n"));
+}
+
+function cartaoLinks(links) {
+  const botoes = links.map((l) =>
+    `<a class="link-guia" href="${escapar(l.url)}" target="_blank" rel="noopener">${escapar(l.nome)}</a>`).join("");
+  return `<div class="lista-rede"><b>Faça pelo app ou pelo site do IPASEM</b><div class="links-guia">${botoes}</div></div>`;
+}
+
+// --- Botões de assunto (menu.json + guia): resposta na hora, sem passar pelo modelo ---------
+let MENU = { assuntos: [] };
+// Assunto escolhido: vai junto com as perguntas digitadas e diz ao chatbot onde procurar
+// (rede: só a rede, sem artigos; autorizações/app: guia, sem tabela). ✕ volta ao caminho completo.
+let assuntoAtual = null;
+const DICA_PADRAO = $("pergunta").placeholder;
+
+function marcarAssunto(assunto) {
+  assuntoAtual = assunto ? assunto.id : null;
+  $("chip-assunto").hidden = !assunto;
+  $("chip-texto").textContent = assunto ? `Assunto: ${assunto.icone} ${assunto.titulo}` : "";
+  $("pergunta").placeholder = (assunto && assunto.exemplo) || DICA_PADRAO;
+}
+$("tirar-assunto").onclick = () => { marcarAssunto(null); $("pergunta").focus(); };
+
+function botoesAssuntos() {
+  return `<div class="assuntos">${MENU.assuntos.map((a, i) =>
+    `<button type="button" class="assunto" data-assunto="${i}">${escapar(a.icone)} ${escapar(a.titulo)}</button>`).join("")}</div>`;
+}
+
+function mostrarAssuntosNoInicio() {
+  const vazio = $("vazio");
+  if (!vazio || !MENU.assuntos.length || vazio.querySelector(".assuntos")) return;
+  vazio.insertAdjacentHTML("beforeend",
+    `<br><br><b>Ou escolha um assunto, que eu vou direto ao ponto:</b>${botoesAssuntos()}`);
+}
+
+async function carregarMenu() {
+  try { MENU = await (await fetch("api/menu")).json(); } catch { MENU = { assuntos: [] }; }
+  $("abrir-assuntos").hidden = !MENU.assuntos.length;
+  mostrarAssuntosNoInicio();
+}
+
+function abrirMenu() {
+  marcarAssunto(null);
+  const msg = adicionarMensagem("assistente");
+  msg.innerHTML = `<div class="balao">Sobre o que você quer falar?${botoesAssuntos()}
+    <div class="metricas">Ou escreva a sua pergunta aqui embaixo.</div></div>`;
+  rolarParaBaixo();
+}
+
+function abrirAssunto(i) {
+  const assunto = MENU.assuntos[i];
+  adicionarMensagem("usuario").innerHTML = `<div class="balao">${escapar(assunto.icone)} ${escapar(assunto.titulo)}</div>`;
+  const msg = adicionarMensagem("assistente");
+  marcarAssunto(assunto);
+  const opcoes = assunto.opcoes.length
+    ? `<div class="opcoes-menu">${assunto.opcoes.map((o, j) =>
+        `<button type="button" class="opcao-menu" data-opcao="${i}:${j}">${escapar(o.titulo)}</button>`).join("")}</div>
+       <div class="metricas">Ou escreva a sua dúvida sobre este assunto aqui embaixo.</div>`
+    : `<div class="metricas">Pode escrever aqui embaixo.</div>`;
+  msg.innerHTML = `<div class="balao">${escapar(assunto.aviso)}${opcoes}</div>`;
+  rolarParaBaixo();
+  if (!assunto.opcoes.length) $("pergunta").focus();
+}
+
+function responderOpcao(i, j) {
+  const opcao = MENU.assuntos[i].opcoes[j];
+  adicionarMensagem("usuario").innerHTML = `<div class="balao">${escapar(opcao.titulo)}</div>`;
+  const msg = adicionarMensagem("assistente");
+  const passo = opcao.passo_a_passo
+    ? `<details><summary>Passo a passo completo (${escapar(opcao.passo_a_passo.id)}: ${escapar(opcao.passo_a_passo.titulo)})</summary>
+       <div class="fonte">${formatarGuia(opcao.passo_a_passo.texto)}</div></details>` : "";
+  msg.innerHTML = `<div class="balao">${formatarGuia(opcao.resposta)}</div>
+    <div class="detalhes">${cartaoLinks(opcao.links)}${passo}
+    <div class="metricas">⚡ Resposta direto do guia do app e do site (${escapar(opcao.fonte)}), sem passar pelo modelo ·
+    ainda com dúvida? Escreva aqui embaixo.
+    <button type="button" class="nao-era" data-menu="1">Outros assuntos</button></div></div>`;
+  // Entra na conversa: "e no app?" logo depois é entendido como continuação.
+  conversa.push({ pergunta: opcao.titulo, resposta: opcao.resposta });
+  rolarParaBaixo();
+}
+
+document.addEventListener("click", (e) => {
+  const alvo = e.target.closest("[data-assunto], [data-opcao], [data-menu]");
+  if (!alvo || ocupado) return;
+  if (alvo.dataset.assunto !== undefined) abrirAssunto(Number(alvo.dataset.assunto));
+  else if (alvo.dataset.opcao) responderOpcao(...alvo.dataset.opcao.split(":").map(Number));
+  else abrirMenu();
+});
 
 function rolarParaBaixo() {
   const c = $("conversa");
@@ -229,7 +348,9 @@ async function perguntar(pergunta, gabarito = null, semConversa = false) {
     const r = await fetch("api/perguntar", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pergunta, pensar: $("pensar").checked, historico }),
+      // Perguntas de teste e "Não era isso" vão sem assunto (caminho completo).
+      body: JSON.stringify({ pergunta, pensar: $("pensar").checked, historico,
+                             assunto: gabarito || semConversa ? null : assuntoAtual }),
     });
     const leitor = r.body.getReader();
     const decodificador = new TextDecoder();
@@ -287,10 +408,7 @@ async function perguntar(pergunta, gabarito = null, semConversa = false) {
             `<details><summary>📱 ${escapar(ev.id)}: ${escapar(ev.titulo)} · similaridade ${ev.similaridade.toFixed(3)}</summary>
              <div class="fonte"><span class="pedaco">Trecho que casou: ${escapar(ev.pedaco)}</span>
              <pre>${escapar(ev.texto)}</pre></div></details>`);
-          const botoes = ev.links.map((l) =>
-            `<a class="link-guia" href="${escapar(l.url)}" target="_blank" rel="noopener">${escapar(l.nome)}</a>`).join("");
-          detalhes.insertAdjacentHTML("beforeend", `<div class="lista-rede">
-            <b>Faça pelo app ou pelo site do IPASEM</b><div class="links-guia">${botoes}</div></div>`);
+          detalhes.insertAdjacentHTML("beforeend", cartaoLinks(ev.links));
         } else if (ev.tipo === "alerta") {
           msg.insertAdjacentHTML("afterbegin", `<div class="alerta">⚠️ ${escapar(ev.mensagem)}</div>`);
         } else if (ev.tipo === "reescrita") {
@@ -374,9 +492,13 @@ $("pergunta").addEventListener("keydown", (e) => {
 $("nova").onclick = () => {
   if (ocupado) return;
   conversa = [];
+  marcarAssunto(null);
   $("conversa").innerHTML = `<div class="vazio" id="vazio">Nova conversa. As perguntas anteriores foram esquecidas.</div>`;
+  mostrarAssuntosNoInicio();
   $("pergunta").focus();
 };
+
+$("abrir-assuntos").onclick = () => { if (!ocupado) abrirMenu(); };
 
 // Barra de perguntas de teste: recolhida por padrão.
 $("alternar").onclick = () => {
@@ -385,6 +507,7 @@ $("alternar").onclick = () => {
 };
 
 carregarSugestoes();
+carregarMenu();
 </script>
 </body>
 </html>

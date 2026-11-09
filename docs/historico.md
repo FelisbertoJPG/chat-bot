@@ -352,6 +352,40 @@ troca foi conferida antes de qualquer palavra nova: nas 98 perguntas dos evals e
 deu exatamente o mesmo resultado da regex (0 diferenças). Com "ordem" e "ordens" em Autorização e
 2 casos novos no eval, 27/29, e as 34 de fora continuam iguais.
 
+## Botões de assunto
+
+"Quero cancelar 3122505" levou 233 s na VM: o modelo tomou o número da autorização por código de
+procedimento, consultou a tabela à toa, e a busca mandou 4 artigos sem relação, quando a resposta
+útil era a seção 7 do guia. A ideia do autor: deixar a pessoa escolher o assunto num botão e, com
+isso, o chatbot já saber onde procurar.
+
+- **Respostas prontas do guia** (`menu.json`, `guia.menu()`, `/api/menu`): "Autorizações" e "App,
+  senha e carteirinha" abrem opções (tirar autorização de consulta, cancelar, 2ª via, senha,
+  carteirinha...). Cada uma mostra a resposta curta das perguntas frequentes do guia, os links e o
+  passo a passo da seção, **sem o modelo**. O `menu.json` só tem a estrutura (título do botão e a
+  pergunta frequente ou a seção que ele mostra); o texto vem do guia, que segue fora do Git. Sem o
+  guia, esses botões não aparecem. `guia.py menu` confere o arquivo e aponta referência quebrada.
+- **Assunto que guia o modelo:** o botão marca o assunto, que vai junto com as perguntas
+  digitadas (`responder(assunto=...)`, entra na chave do cache). "Rede": só a ferramenta da rede,
+  sem os 4 artigos, sem o guia e com instruções curtas (`SYSTEM_SO_REDE`) no lugar das ~700 do
+  regulamento. "Autorizações"/"App": o guia entra mesmo sem palavra do vocabulário, e nenhuma
+  ferramenta é oferecida.
+- **Sem botão também:** pergunta que casa com o guia pelo vocabulário e não fala de valor não
+  recebe a tabela, e a etapa de decisão nem roda. As instruções do guia agora dizem que o chatbot
+  não vê nem altera autorizações ("não consigo fazer por aqui; você faz pelo app ou pelo site").
+
+| Medição | Resultado |
+|---|---|
+| Guia, 9 respostas (com "quero cancelar 3122505") | 9/9 (antes 6/8 + 2 parciais); o 3122505 sem consultar a tabela |
+| Rede, 11 perguntas, sem o assunto | 11/11, 50,7 s em média |
+| As mesmas 11, com o assunto "rede" | 11/11, **24,0 s** em média; "quero marcar uma consulta" 42 s -> 9,6 s |
+
+Na rodada com assunto, duas respostas escreveram "53 clínicas gerais" e a régua só aceitava o
+singular: o critério passou a aceitar o plural e as duas rodadas foram recorrigidas sem modelo
+(`--recorrigir`). As 11 perguntas passaram sem os artigos, inclusive as que a rota da rede pega
+sozinha (sem botão); aplicar o mesmo corte quando a rota da rede é detectada automaticamente é o
+próximo passo natural, a medir.
+
 ## v0: Claude via API (`claude_v0.py`)
 
 Versão inicial, antes da decisão de rodar tudo localmente:

@@ -177,7 +177,7 @@
     "fontes": "Rede credenciada",
     "criterios": {
       "deve_ter": [
-        "clinic[oa] geral",
+        "clinic[oa]s? gera(l|is)",
         "novo hamburgo"
       ],
       "nao_pode_ter": [
@@ -221,7 +221,7 @@
     "fontes": "Rede credenciada",
     "criterios": {
       "deve_ter": [
-        "clinic[oa] geral",
+        "clinic[oa]s? gera(l|is)",
         "novo hamburgo"
       ],
       "nao_pode_ter": [
