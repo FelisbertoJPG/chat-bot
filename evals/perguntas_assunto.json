@@ -1,0 +1,127 @@
+[
+  {
+    "assunto": "rede",
+    "pergunta": "psicólogo no centro",
+    "esperado": null
+  },
+  {
+    "assunto": "rede",
+    "pergunta": "dor nas costas, quem procuro?",
+    "esperado": null
+  },
+  {
+    "assunto": "rede",
+    "pergunta": "cardiologista em São Leopoldo",
+    "esperado": null
+  },
+  {
+    "assunto": "rede",
+    "pergunta": "o plano cobre óculos?",
+    "esperado": "regulamento"
+  },
+  {
+    "assunto": "rede",
+    "pergunta": "quantas consultas de psicologia posso fazer por ano?",
+    "esperado": "regulamento"
+  },
+  {
+    "assunto": "rede",
+    "pergunta": "quero cancelar 3122505",
+    "esperado": "autorizacoes"
+  },
+  {
+    "assunto": "rede",
+    "pergunta": "esqueci a senha do app",
+    "esperado": "app"
+  },
+  {
+    "assunto": "autorizacoes",
+    "pergunta": "como peço autorização de exame?",
+    "esperado": null
+  },
+  {
+    "assunto": "autorizacoes",
+    "pergunta": "quantas autorizações odontológicas minha família tem por mês?",
+    "esperado": null
+  },
+  {
+    "assunto": "autorizacoes",
+    "pergunta": "contato de fono",
+    "esperado": "rede"
+  },
+  {
+    "assunto": "autorizacoes",
+    "pergunta": "o plano cobre implante dentário?",
+    "esperado": "regulamento"
+  },
+  {
+    "assunto": "autorizacoes",
+    "pergunta": "cadê minha carteirinha?",
+    "esperado": "app"
+  },
+  {
+    "assunto": "app",
+    "pergunta": "esqueci a senha",
+    "esperado": null
+  },
+  {
+    "assunto": "app",
+    "pergunta": "meu dependente quer acessar sozinho",
+    "esperado": null
+  },
+  {
+    "assunto": "app",
+    "pergunta": "quero cancelar uma autorização",
+    "esperado": "autorizacoes"
+  },
+  {
+    "assunto": "app",
+    "pergunta": "tem dermatologista em Gramado?",
+    "esperado": "rede"
+  },
+  {
+    "assunto": "regulamento",
+    "pergunta": "o plano cobre óculos?",
+    "esperado": null
+  },
+  {
+    "assunto": "regulamento",
+    "pergunta": "Tomei posse há 6 meses. Já posso marcar uma consulta eletiva?",
+    "esperado": null
+  },
+  {
+    "assunto": "regulamento",
+    "pergunta": "clinico geral novo hamburgo",
+    "esperado": "rede"
+  },
+  {
+    "assunto": "regulamento",
+    "pergunta": "como cancelo uma autorização?",
+    "esperado": "autorizacoes"
+  },
+  {
+    "assunto": "regulamento",
+    "pergunta": "Quantas autorizações odontológicas minha família tem por mês?",
+    "esperado": null
+  },
+  {
+    "assunto": "regulamento",
+    "pergunta": "quero marcar uma consulta",
+    "esperado": null
+  },
+  {
+    "assunto": "rede",
+    "pergunta": "o plano cobre cirurgia de catarata?",
+    "esperado": "regulamento"
+  },
+  {
+    "assunto": "regulamento",
+    "pergunta": "dentista no centro",
+    "esperado": "rede"
+  },
+  {
+    "assunto": "rede",
+    "pergunta": "pediatra",
+    "esperado": null
+  }
+]

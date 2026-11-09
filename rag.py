@@ -208,9 +208,56 @@ continuam valendo.
 # instruções curtas, no lugar do SYSTEM inteiro (~700 tokens sobre artigos e tabela que ela não usa):
 # as regras de como responder a rede já vão junto com o resultado (rede.INSTRUCOES).
 ASSUNTOS_DO_GUIA = {"autorizacoes", "app"}
+ASSUNTOS = ASSUNTOS_DO_GUIA | {"rede", "regulamento"}  # "regulamento" = o caminho completo
 SYSTEM_SO_REDE = """Você ajuda beneficiários do plano de saúde do IPASEM (Novo Hamburgo) a encontrar \
 quem atende na rede credenciada. Use só o resultado da consulta à rede que vem com a pergunta e \
 siga as instruções que vêm com ele. Responda em português simples, em no máximo 5 frases."""
+
+
+# Troca de assunto: a pergunta digitada parece ser de outro assunto? Três sinais, um por família:
+#   rede         -> pede_prestador() ("quem atende", "contato", especialidade + cidade...); nome de
+#                   especialidade sozinho ("tem dermatologista em Gramado?") só quando não há outro
+#                   sinal: "o plano cobre cirurgia?" cita uma especialidade e é pergunta de regra
+#   autorizacoes -> palavra do vocabulario.json de um bloco desse assunto (menu.json, "blocos")
+#   app          -> idem (senha, carteirinha, extrato...)
+#   regulamento  -> _RE_REGRA (cobre, carência, quantas, valor, reembolso...)
+# Só sugere quando há sinal de UM outro assunto e nenhum do atual; sem sinal claro, segue no
+# assunto escolhido ("psicólogo no centro" no assunto rede não tem outro sinal, e está certo).
+# Medido em avaliar_assunto.py.
+_RE_REGRA = re.compile(
+    r"\bcobre\b|\bcobrem\b|cobertura|carencia|reembolso|coparticipa|\bdependentes?\b|limite|"
+    r"\bquant[oa]s\b|regulamento|\bartigo|valor|quanto (custa|paga|pago|e|sai)|preco|tabela|"
+    r"exclu|internac|\bdireito\b|resolucao|\bposse\b|mensalidade|contribuicao")
+_PALAVRAS_QUE_NAO_SAO_ESPECIALIDADE = {"geral", "gerais"}
+
+
+def menciona_especialidade(texto: str) -> bool:
+    """Alguma palavra da pergunta é nome de especialidade da rede ("dermatologista", "dentista")?"""
+    if not rede.disponivel():
+        return False
+    return any(rede.achar_especialidades(p) for p in memoria.normalizar(texto).split()
+               if len(p) >= 4 and p not in _PALAVRAS_QUE_NAO_SAO_ESPECIALIDADE)
+
+
+def sugerir_assunto(atual: str, pergunta: str, original: str = "") -> str | None:
+    """O assunto para o qual vale oferecer a troca, ou None (segue no atual)."""
+    if atual not in ASSUNTOS:
+        return None
+    sinais: set[str] = set()
+    if "consultar_rede" in FERRAMENTAS and pede_prestador(pergunta, original):
+        sinais.add("rede")
+    for texto in (pergunta, original):
+        bloco = guia.assunto(texto) if texto else None
+        if bloco:
+            sinais.add(guia.assunto_do_bloco(bloco) or "autorizacoes")
+            break
+    if _RE_REGRA.search(memoria.normalizar(f"{pergunta} {original}")):
+        sinais.add("regulamento")
+    if not sinais and "consultar_rede" in FERRAMENTAS and menciona_especialidade(f"{pergunta} {original}"):
+        sinais.add("rede")
+    if atual in sinais or len(sinais) != 1:
+        return None
+    return next(iter(sinais))
 
 
 def formatar_paginas(trecho: dict) -> str:
@@ -358,12 +405,16 @@ def _validada_para_tela(entrada: dict) -> dict:
 
 
 def responder(pergunta: str, pensar: bool = False, atalhos: bool = True,
-              historico: list[dict] | None = None, assunto: str | None = None) -> Iterator[dict]:
+              historico: list[dict] | None = None, assunto: str | None = None,
+              manter_assunto: bool = False) -> Iterator[dict]:
     """atalhos=False pula a resposta validada exata e o cache (nem lê, nem grava): os evals
     usam assim para medir o modelo, e não a memória.
     historico: trocas anteriores da conversa, para entender perguntas de continuação.
     assunto: o botão de assunto que a pessoa escolheu (menu.json: "rede", "autorizacoes",
-    "app"); diz ao chatbot onde procurar e o que pular (ver _gerar). None: o caminho completo.
+    "app", "regulamento"); diz ao chatbot onde procurar e o que pular (ver _gerar). None: o
+    caminho completo. Se a pergunta parece ser de outro assunto, sai só o evento "mudar_assunto"
+    e nada é respondido; a página pergunta e, se a pessoa quiser continuar, manda de novo com
+    manter_assunto=True (os evals também usam assim, para medir o caminho do assunto).
 
     Gera eventos para a interface:
     {"tipo": "reescrita", ...}   -> como a pergunta de continuação foi entendida
@@ -404,6 +455,14 @@ def responder(pergunta: str, pensar: bool = False, atalhos: bool = True,
         yield {"tipo": "alerta", "mensagem": ALERTA_VIDA}
     elif _RE_EMERGENCIA.search(normalizada):
         yield {"tipo": "alerta", "mensagem": ALERTA_EMERGENCIA}
+
+    # Pergunta de outro assunto: pergunta antes de responder (e não gasta o modelo à toa).
+    if assunto and not manter_assunto:
+        sugerido = sugerir_assunto(assunto, pergunta, original)
+        if sugerido:
+            yield {"tipo": "mudar_assunto", "atual": assunto, "sugerido": sugerido, "pergunta": pergunta}
+            yield {"tipo": "fim", "origem": "mudar_assunto", "tempo_total": round(time.time() - inicio, 1)}
+            return
 
     if not atalhos:
         yield from _gerar(pergunta, pensar, inicio, original, cidade_conversa, assunto)
@@ -532,7 +591,9 @@ def _gerar(pergunta: str, pensar: bool, inicio: float, original: str = "",
                    # Contatos completos para a tela, direto do cadastro (o modelo não os copia).
                    "lista": rede.para_tela(resultado) if nome == "consultar_rede" else None}
             mensagens.append({"role": "tool", "tool_name": nome,
-                              "content": json.dumps(resultado, ensure_ascii=False)})
+                              # Sem as chaves "_" (ex.: a lista completa da rede, que é só para a tela).
+                              "content": json.dumps({k: v for k, v in resultado.items()
+                                                     if not k.startswith("_")}, ensure_ascii=False)})
         # Achou algo: não precisa de outra rodada. Vazio: o modelo pode tentar outro termo.
         if any(c["resultado"].get("total_encontrado") for c in consultas):
             break

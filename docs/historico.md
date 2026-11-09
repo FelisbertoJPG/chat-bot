@@ -386,6 +386,38 @@ singular: o critério passou a aceitar o plural e as duas rodadas foram recorrig
 sozinha (sem botão); aplicar o mesmo corte quando a rota da rede é detectada automaticamente é o
 próximo passo natural, a medir.
 
+## A conversa começa pelo assunto
+
+Polimento da tela, a pedido do autor, testando ao vivo:
+
+- **Sem cabeçalho nem perguntas de teste.** A lateral tem só "Nova conversa" (os evals seguem no
+  terminal). A tela abre com "Escolha um assunto para iniciar a conversa", em lista, e a caixa de
+  texto só libera depois: o assunto já leva o contexto. Entrou o assunto "Cobertura, regras e
+  valores" (o caminho completo), senão "o plano cobre óculos?" não teria por onde entrar.
+- **Troca de assunto** (`rag.sugerir_assunto`, `avaliar_assunto.py`): três sinais, um por assunto:
+  pedir prestador (rede), palavra do vocabulário de um bloco (autorizações ou app, pelos "blocos"
+  do `menu.json`) e palavra de regra (`_RE_REGRA`: cobre, carência, quantas, valor...). Só pergunta
+  "Quer mudar de assunto?" quando há sinal de **um** outro assunto e nenhum do atual; nome de
+  especialidade sozinho conta como rede só sem outro sinal ("o plano cobre cirurgia?" é regra).
+  Primeira versão 19/22: Autorizações e App eram tratados como um só assunto, e "tem
+  dermatologista em Gramado?" não tinha sinal (Gramado não tem prestador). Corrigido: 25/25. A
+  pergunta de troca sai antes do modelo (menos de 1 s); "Não, continuar" manda de novo com
+  `manter_assunto`, como os evals das respostas.
+- **Rede por quadro, sem modelo:** cidade obrigatória (lista suspensa, com quantos prestadores) e
+  especialidade opcional (lista com pesquisa, só as da cidade). Uma primeira versão com botões de
+  especialidade abria "um quadro muito grande"; o autor preferiu a cidade primeiro. O cadastro tinha
+  "SAO LEOPOLDO" e "SÃO LEOPOLDO" como cidades diferentes: a lista junta pela forma normalizada.
+  A lista de contatos (também na pergunta escrita) mostra 5, "Ver todos" e filtro por bairro; o
+  modelo continua recebendo só 5 nomes (a lista completa vai em `_todos`, que não vai ao modelo).
+- **Registro das conversas** (`registro.py`, `dados/registro/AAAA-MM.jsonl`, fora do Git): cada
+  pergunta com assunto, reescrita, artigos, guia, ferramentas, origem, tempo e resposta; e os
+  cliques (assunto, resposta pronta, quadro da rede, aceitar ou recusar a troca). CPF, telefone e
+  e-mail são mascarados antes de gravar; o número de uma autorização fica. `CHATBOT_REGISTRO=0`
+  desliga.
+- **Primeira resposta validada no `memoria.md`:** "tempo pra autorizar um exame" (e 8 formas
+  parecidas). O modelo respondeu o prazo certo, mas acrescentou "carência de 10 meses para quem não
+  é titular", que estava errado (misturou o Art. 63). Agora sai do texto conferido, em 0 s.
+
 ## v0: Claude via API (`claude_v0.py`)
 
 Versão inicial, antes da decisão de rodar tudo localmente:

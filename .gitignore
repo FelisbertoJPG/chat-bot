@@ -17,6 +17,9 @@ CLAUDE.md
 dados/cache_respostas.json
 dados/cache_respostas.tmp
 
+# Registro das conversas (registro.py): perguntas reais de pessoas, só na máquina do servidor
+dados/registro/
+
 # Rascunhos de mensagem de commit (revisados antes de virar commit)
 .commits/
 

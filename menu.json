@@ -8,16 +8,27 @@
     "  \"secao\"               (opcional) número da seção do guia aberta em 'Passo a passo completo'",
     "Uma das duas precisa existir. Sem pergunta_frequente, a resposta é a seção inteira.",
     "Assunto SEM \"opcoes\" (ex.: rede): o botão só marca o assunto e a pessoa escreve a pergunta; o chatbot usa o assunto para saber onde procurar (rag.py). \"requer\" diz do que ele depende para aparecer (\"rede\" = prestadores.json) e \"exemplo\" vira a dica na caixa de texto.",
-    "Mudou o guia ou este arquivo? Confira com: python guia.py menu (avisa referência que não existe mais)."
+    "Mudou o guia ou este arquivo? Confira com: python guia.py menu (avisa referência que não existe mais).",
+    "\"blocos\" (assuntos do guia): blocos do vocabulario.json que pertencem a este assunto. Pergunta com palavra de um bloco de OUTRO assunto faz o chatbot oferecer a troca de assunto.",
+    "Assunto sem \"requer\" aparece sempre.",
+    "\"fluxo\": \"rede\" troca as opções por um quadro com cidade (obrigatória) e especialidade (opcional, com pesquisa), tirados do cadastro da rede (sem modelo)."
   ],
   "assuntos": [
+    {
+      "id": "regulamento",
+      "icone": "📘",
+      "titulo": "Cobertura, regras e valores",
+      "aviso": "Pode perguntar o que o plano cobre, carência, quantas consultas pode fazer, reembolso, dependentes e valores da tabela. Eu respondo citando o artigo do regulamento.",
+      "exemplo": "Ex.: o plano cobre óculos?"
+    },
     {
       "id": "rede",
       "icone": "🏥",
       "titulo": "Quem atende (rede credenciada)",
       "requer": "rede",
-      "aviso": "Me diga a especialidade (ou o que você está sentindo) e, se quiser, a cidade e o bairro. Eu mostro os contatos da rede credenciada.",
-      "exemplo": "Ex.: psicólogo no Centro de Novo Hamburgo"
+      "aviso": "Escolha a cidade e, se quiser, a especialidade, e eu mostro os contatos da rede credenciada. Se preferir, escreva aqui embaixo o que está sentindo ou o que procura.",
+      "exemplo": "Ex.: psicólogo no Centro de Novo Hamburgo",
+      "fluxo": "rede"
     },
     {
       "id": "autorizacoes",
@@ -25,14 +36,51 @@
       "titulo": "Autorizações",
       "aviso": "Eu não vejo nem altero as suas autorizações, mas você mesmo resolve pelo app ou pelo site em poucos passos. Escolha o que precisa:",
       "opcoes": [
-        {"titulo": "Tirar autorização de consulta", "pergunta_frequente": "Como tiro autorização de consulta?", "secao": "3"},
-        {"titulo": "Autorização de dentista", "pergunta_frequente": "Como tiro autorização de consulta?", "secao": "4"},
-        {"titulo": "Autorização de exame ou fisioterapia", "pergunta_frequente": "Como peço autorização de exame?", "secao": "5"},
-        {"titulo": "Meu exame foi negado", "pergunta_frequente": "Meu exame foi negado, e agora?", "secao": "5"},
-        {"titulo": "Cancelar uma autorização", "pergunta_frequente": "Quero cancelar uma autorização.", "secao": "7"},
-        {"titulo": "Perdi a autorização (2ª via)", "pergunta_frequente": "Perdi a autorização.", "secao": "6"},
-        {"titulo": "Até quando vale a autorização?", "pergunta_frequente": "Quanto tempo vale a autorização?"},
-        {"titulo": "Autorização de dependente (aprovação do titular)", "secao": "9"}
+        {
+          "titulo": "Tirar autorização de consulta",
+          "pergunta_frequente": "Como tiro autorização de consulta?",
+          "secao": "3"
+        },
+        {
+          "titulo": "Autorização de dentista",
+          "pergunta_frequente": "Como tiro autorização de consulta?",
+          "secao": "4"
+        },
+        {
+          "titulo": "Autorização de exame ou fisioterapia",
+          "pergunta_frequente": "Como peço autorização de exame?",
+          "secao": "5"
+        },
+        {
+          "titulo": "Meu exame foi negado",
+          "pergunta_frequente": "Meu exame foi negado, e agora?",
+          "secao": "5"
+        },
+        {
+          "titulo": "Cancelar uma autorização",
+          "pergunta_frequente": "Quero cancelar uma autorização.",
+          "secao": "7"
+        },
+        {
+          "titulo": "Perdi a autorização (2ª via)",
+          "pergunta_frequente": "Perdi a autorização.",
+          "secao": "6"
+        },
+        {
+          "titulo": "Até quando vale a autorização?",
+          "pergunta_frequente": "Quanto tempo vale a autorização?"
+        },
+        {
+          "titulo": "Autorização de dependente (aprovação do titular)",
+          "secao": "9"
+        }
+      ],
+      "blocos": [
+        "Autorização",
+        "Cancelar autorização",
+        "Segunda via e impressão",
+        "Exame negado ou liberado",
+        "Marcar consulta"
       ]
     },
     {
@@ -41,14 +89,51 @@
       "titulo": "App, senha e carteirinha",
       "aviso": "Escolha o que precisa. As respostas valem para o app IPASEM NH Digital e para o site do segurado:",
       "opcoes": [
-        {"titulo": "Esqueci a senha", "pergunta_frequente": "Esqueci a senha.", "secao": "2"},
-        {"titulo": "Não recebo o e-mail de senha", "pergunta_frequente": "Não recebo o e-mail de senha / e-mail errado."},
-        {"titulo": "Carteirinha digital", "pergunta_frequente": "Onde está minha carteirinha?", "secao": "12"},
-        {"titulo": "Meu dependente quer acessar sozinho", "pergunta_frequente": "Meu dependente quer acessar sozinho.", "secao": "8"},
-        {"titulo": "Diz que estou em carência", "pergunta_frequente": "Diz que estou em carência.", "secao": "2"},
-        {"titulo": "\"Ficha cadastral em falta\"", "pergunta_frequente": "\"Ficha cadastral em falta\"."},
-        {"titulo": "Quanto paguei de coparticipação / IR", "pergunta_frequente": "Onde vejo quanto paguei de coparticipação?", "secao": "11"},
-        {"titulo": "Comprovante de rendimentos", "secao": "14"}
+        {
+          "titulo": "Esqueci a senha",
+          "pergunta_frequente": "Esqueci a senha.",
+          "secao": "2"
+        },
+        {
+          "titulo": "Não recebo o e-mail de senha",
+          "pergunta_frequente": "Não recebo o e-mail de senha / e-mail errado."
+        },
+        {
+          "titulo": "Carteirinha digital",
+          "pergunta_frequente": "Onde está minha carteirinha?",
+          "secao": "12"
+        },
+        {
+          "titulo": "Meu dependente quer acessar sozinho",
+          "pergunta_frequente": "Meu dependente quer acessar sozinho.",
+          "secao": "8"
+        },
+        {
+          "titulo": "Diz que estou em carência",
+          "pergunta_frequente": "Diz que estou em carência.",
+          "secao": "2"
+        },
+        {
+          "titulo": "\"Ficha cadastral em falta\"",
+          "pergunta_frequente": "\"Ficha cadastral em falta\"."
+        },
+        {
+          "titulo": "Quanto paguei de coparticipação / IR",
+          "pergunta_frequente": "Onde vejo quanto paguei de coparticipação?",
+          "secao": "11"
+        },
+        {
+          "titulo": "Comprovante de rendimentos",
+          "secao": "14"
+        }
+      ],
+      "blocos": [
+        "App e site",
+        "Carteirinha",
+        "Senha e acesso",
+        "Extratos e imposto de renda",
+        "Histórico",
+        "Cadastro"
       ]
     }
   ]

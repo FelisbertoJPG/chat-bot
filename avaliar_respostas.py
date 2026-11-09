@@ -125,7 +125,7 @@ def rodar(indices: list[int], pensar: bool) -> list[dict]:
         # "conversa" (opcional): trocas anteriores, como a página manda em historico.
         # "assunto" (opcional, ou --assunto para todas): o botão de assunto escolhido na página.
         for ev in responder(p["pergunta"], pensar=pensar, atalhos=False, historico=p.get("conversa"),
-                            assunto=p.get("assunto") or ASSUNTO):
+                            assunto=p.get("assunto") or ASSUNTO, manter_assunto=True):
             if ev["tipo"] == "texto":
                 texto.append(ev["texto"])
             elif ev["tipo"] == "fontes":

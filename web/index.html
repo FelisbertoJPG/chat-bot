@@ -3,18 +3,18 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Chatbot do Regulamento</title>
+<title>Chatbot do IPASEM</title>
 <style>
   :root {
     --bg: #f6f6f4; --painel: #ffffff; --borda: #e3e2de; --texto: #1f1f1d; --suave: #6b6a66;
-    --destaque: #2f6f5e; --destaque-texto: #ffffff; --usuario: #e8f1ee; --gabarito: #fff7e0;
-    --gabarito-borda: #e9cf7a; --codigo: #f0efeb; --alerta: #fdecea; --alerta-borda: #e5a29a;
+    --destaque: #2f6f5e; --destaque-texto: #ffffff; --usuario: #e8f1ee;
+    --codigo: #f0efeb; --alerta: #fdecea; --alerta-borda: #e5a29a;
   }
   @media (prefers-color-scheme: dark) {
     :root {
       --bg: #161615; --painel: #1f1f1d; --borda: #33332f; --texto: #ecebe7; --suave: #9b9a95;
-      --destaque: #5fb39b; --destaque-texto: #0f1f1a; --usuario: #22302c; --gabarito: #2c2715;
-      --gabarito-borda: #6b5a22; --codigo: #262623; --alerta: #3a1f1c; --alerta-borda: #8a3d35;
+      --destaque: #5fb39b; --destaque-texto: #0f1f1a; --usuario: #22302c;
+      --codigo: #262623; --alerta: #3a1f1c; --alerta-borda: #8a3d35;
     }
   }
   * { box-sizing: border-box; }
@@ -23,35 +23,17 @@
     font: 15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
   }
   aside {
-    width: 300px; flex-shrink: 0; border-right: 1px solid var(--borda); background: var(--painel);
-    overflow-y: auto; padding: 16px; display: none;
+    width: 220px; flex-shrink: 0; border-right: 1px solid var(--borda); background: var(--painel);
+    padding: 16px; display: flex; flex-direction: column; gap: 12px;
   }
-  body.com-sugestoes aside { display: block; }
-  header { display: flex; align-items: center; gap: 12px; }
-  header .titulos { flex: 1; min-width: 0; }
-  #alternar, #nova, #abrir-assuntos {
-    flex-shrink: 0; padding: 6px 10px; border: 1px solid var(--borda); border-radius: 8px;
-    background: var(--bg); color: var(--texto); font: inherit; font-size: 13px; cursor: pointer;
+  #nova {
+    width: 100%; padding: 10px 12px; border: 1px solid var(--destaque); border-radius: 8px;
+    background: var(--bg); color: var(--texto); font: inherit; font-weight: 600; cursor: pointer; text-align: left;
   }
-  #alternar:hover, #nova:hover, #abrir-assuntos:hover { border-color: var(--destaque); }
-  #abrir-assuntos[hidden] { display: none; }
-  header .titulos { order: 1; }
-  #abrir-assuntos { order: 2; }
-  #nova { order: 3; }
-  aside h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--suave); margin: 0 0 4px; }
-  aside p { font-size: 13px; color: var(--suave); margin: 0 0 16px; }
-  .categoria { font-size: 12px; font-weight: 600; color: var(--suave); margin: 16px 0 6px; }
-  .sugestao {
-    display: block; width: 100%; text-align: left; margin-bottom: 6px; padding: 8px 10px;
-    border: 1px solid var(--borda); border-radius: 8px; background: var(--bg); color: var(--texto);
-    font: inherit; font-size: 13px; cursor: pointer;
-  }
-  .sugestao:hover { border-color: var(--destaque); }
-  .sugestao.feita { opacity: .55; }
+  #nova:hover { background: var(--usuario); }
+  aside .rodape { margin-top: auto; font-size: 12px; color: var(--suave); }
+  aside label { display: block; margin-bottom: 8px; }
   main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
-  header { padding: 14px 20px; border-bottom: 1px solid var(--borda); background: var(--painel); }
-  header h1 { font-size: 16px; margin: 0; }
-  header span { font-size: 12px; color: var(--suave); }
   #conversa { flex: 1; overflow-y: auto; padding: 24px 20px; }
   .msg { max-width: 760px; margin: 0 auto 20px; }
   .msg.usuario .balao { background: var(--usuario); margin-left: auto; width: fit-content; max-width: 85%; }
@@ -68,29 +50,33 @@
     white-space: pre-wrap; font: 12px/1.5 ui-monospace, Consolas, monospace; background: var(--codigo);
     padding: 8px; border-radius: 6px; margin: 6px 0 0;
   }
-  .gabarito {
-    margin-top: 8px; padding: 10px 12px; border-radius: 8px; font-size: 13px;
-    background: var(--gabarito); border: 1px solid var(--gabarito-borda);
-  }
   .metricas { font-size: 12px; color: var(--suave); margin-top: 6px; }
   .lista-rede {
     margin-top: 8px; padding: 10px 12px; border-radius: 8px; font-size: 13px;
     background: var(--painel); border: 1px solid var(--destaque);
   }
-  .assuntos, .opcoes-menu { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
-  .vazio .assuntos { justify-content: center; margin-top: 16px; }
-  .assunto, .opcao-menu {
+  .assuntos, .opcoes-menu, .botoes-troca { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .vazio .assuntos {
+    flex-direction: column; flex-wrap: nowrap; width: 100%; max-width: 420px; margin: 20px auto 0;
+  }
+  .assunto, .opcao-menu, .botao-troca {
     padding: 8px 12px; border: 1px solid var(--borda); border-radius: 8px; background: var(--bg);
     color: var(--texto); font: inherit; font-size: 14px; cursor: pointer; text-align: left;
   }
   .assunto { font-weight: 600; }
-  .assunto:hover, .opcao-menu:hover { border-color: var(--destaque); }
+  .vazio .assunto { padding: 12px 16px; font-size: 15px; }
+  .botao-troca.principal { border-color: var(--destaque); font-weight: 600; }
+  .assunto:hover, .opcao-menu:hover, .botao-troca:hover { border-color: var(--destaque); }
+  button:disabled { opacity: .5; cursor: default; }
   .chip-assunto {
-    display: inline-flex; align-items: center; gap: 6px; margin-right: 12px; padding: 2px 4px 2px 10px;
+    display: inline-flex; align-items: center; gap: 8px; padding: 2px 4px 2px 10px;
     border: 1px solid var(--destaque); border-radius: 999px; color: var(--texto);
   }
   .chip-assunto[hidden] { display: none; }
-  .chip-assunto button { border: 0; background: none; color: var(--suave); cursor: pointer; font: inherit; }
+  .chip-assunto button {
+    border: 0; border-radius: 999px; padding: 2px 8px; background: var(--usuario); color: var(--texto);
+    cursor: pointer; font: inherit; font-size: 12px;
+  }
   .links-guia { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
   .link-guia {
     padding: 6px 10px; border: 1px solid var(--destaque); border-radius: 6px;
@@ -98,7 +84,49 @@
   }
   .link-guia:hover { background: var(--bg); }
   .prestador { border-top: 1px solid var(--borda); padding: 8px 0; }
-  .prestador:first-of-type { border-top: 0; }
+  .prestador[hidden] { display: none; }
+  .chips-bairro { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 4px; }
+  .chip-bairro {
+    padding: 2px 10px; border: 1px solid var(--borda); border-radius: 999px; background: var(--bg);
+    color: var(--texto); font: inherit; font-size: 12px; cursor: pointer;
+  }
+  .chip-bairro.ativo { border-color: var(--destaque); background: var(--usuario); font-weight: 600; }
+  .ver-todos {
+    margin-top: 6px; padding: 6px 12px; border: 1px solid var(--destaque); border-radius: 8px;
+    background: var(--bg); color: var(--destaque); font: inherit; font-weight: 600; cursor: pointer;
+  }
+  .form-rede { display: grid; gap: 10px; margin-top: 12px; max-width: 460px; }
+  .form-rede label { display: grid; gap: 4px; font-size: 13px; font-weight: 600; }
+  .form-rede .nota { font-weight: 400; color: var(--suave); }
+  .form-rede select, .lista-busca > button {
+    width: 100%; padding: 8px 10px; border: 1px solid var(--borda); border-radius: 8px;
+    background: var(--bg); color: var(--texto); font: inherit; font-size: 14px; text-align: left; cursor: pointer;
+  }
+  .form-rede select:focus, .lista-busca > button:focus { outline: 2px solid var(--destaque); }
+  .lista-busca { position: relative; }
+  .lista-busca > button:disabled { cursor: not-allowed; }
+  .lista-busca > button::after { content: "▾"; float: right; color: var(--suave); }
+  .painel-busca {
+    position: absolute; z-index: 5; top: calc(100% + 4px); left: 0; right: 0; padding: 8px;
+    border: 1px solid var(--destaque); border-radius: 8px; background: var(--painel);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, .15);
+  }
+  .painel-busca[hidden] { display: none; }
+  .painel-busca input {
+    width: 100%; padding: 7px 9px; border: 1px solid var(--borda); border-radius: 6px;
+    background: var(--bg); color: var(--texto); font: inherit; font-size: 14px;
+  }
+  .itens-busca { max-height: 220px; overflow-y: auto; margin-top: 6px; }
+  .item-busca {
+    display: block; width: 100%; padding: 6px 8px; border: 0; border-radius: 6px; background: none;
+    color: var(--texto); font: inherit; font-size: 14px; text-align: left; cursor: pointer;
+  }
+  .item-busca:hover, .item-busca.escolhido { background: var(--usuario); }
+  .item-busca .qtd { color: var(--suave); font-size: 12px; }
+  .buscar-rede {
+    justify-self: start; padding: 8px 18px; border: 0; border-radius: 8px; background: var(--destaque);
+    color: var(--destaque-texto); font: inherit; font-weight: 600; cursor: pointer;
+  }
   .alerta {
     margin-bottom: 8px; padding: 10px 12px; border-radius: 8px; font-weight: 600;
     background: var(--alerta); border: 1px solid var(--alerta-borda); color: var(--texto);
@@ -108,8 +136,8 @@
     background: var(--bg); color: var(--texto); font: inherit; font-size: 12px; cursor: pointer;
   }
   .nao-era:hover { border-color: var(--destaque); }
-  .nao-era:disabled { opacity: .5; cursor: default; }
-  .vazio { max-width: 760px; margin: 60px auto; text-align: center; color: var(--suave); }
+  .vazio { max-width: 760px; margin: 80px auto; text-align: center; color: var(--suave); }
+  .vazio h2 { color: var(--texto); font-size: 20px; margin: 0; }
   form { border-top: 1px solid var(--borda); background: var(--painel); padding: 12px 20px 16px; }
   .entrada { max-width: 760px; margin: 0 auto; display: flex; gap: 8px; }
   textarea {
@@ -117,54 +145,44 @@
     border: 1px solid var(--borda); background: var(--bg); color: var(--texto); font: inherit;
   }
   textarea:focus { outline: 2px solid var(--destaque); border-color: transparent; }
+  textarea:disabled { opacity: .6; cursor: not-allowed; }
   button.enviar {
     padding: 0 18px; border: 0; border-radius: 10px; background: var(--destaque); color: var(--destaque-texto);
     font: inherit; font-weight: 600; cursor: pointer;
   }
-  button.enviar:disabled { opacity: .5; cursor: default; }
-  .opcoes { max-width: 760px; margin: 8px auto 0; font-size: 13px; color: var(--suave); }
+  .opcoes { max-width: 760px; margin: 8px auto 0; font-size: 13px; color: var(--suave); min-height: 26px; }
   @media (max-width: 760px) {
     body { flex-direction: column; }
-    aside { width: auto; max-height: 30vh; border-right: 0; border-bottom: 1px solid var(--borda); }
-    #conversa, form, header { padding-left: 16px; padding-right: 16px; }
+    aside { width: auto; flex-direction: row; align-items: center; padding: 10px 16px; border-right: 0; border-bottom: 1px solid var(--borda); }
+    #nova { width: auto; }
+    aside .rodape { margin: 0 0 0 auto; }
+    aside .rodape p { display: none; }
+    #conversa, form { padding-left: 16px; padding-right: 16px; }
+    .vazio { margin-top: 32px; }
   }
 </style>
 </head>
 <body>
 <aside>
-  <h2>Perguntas de teste</h2>
-  <p>Clique para perguntar. Depois da resposta aparece o gabarito para você conferir.</p>
-  <div id="sugestoes"></div>
+  <button id="nova" type="button" title="Esquece as perguntas anteriores e volta para a escolha do assunto">＋ Nova conversa</button>
+  <div class="rodape">
+    <label title="Mais preciso, bem mais lento"><input type="checkbox" id="pensar"> Pensar antes de responder</label>
+    <p>As perguntas são registradas, sem CPF, telefone ou e-mail, para melhorar as respostas.</p>
+  </div>
 </aside>
 
 <main>
-  <header>
-    <button id="alternar" type="button" aria-expanded="false">☰ Perguntas de teste</button>
-    <button id="abrir-assuntos" type="button" hidden title="Respostas rápidas sobre o app e o site">📋 Assuntos</button>
-    <button id="nova" type="button" title="Esquece as perguntas anteriores">＋ Nova conversa</button>
-    <div class="titulos">
-      <h1>Chatbot do Regulamento de Assistência à Saúde · IPASEM</h1>
-      <span id="info">Teste local · carregando...</span>
-    </div>
-  </header>
-
-  <div id="conversa">
-    <div class="vazio" id="vazio">
-      Pergunte qualquer coisa sobre o regulamento.<br>
-      Pode continuar o assunto (ex.: "e de clínico geral?"): o chatbot lembra das últimas 3 perguntas desta conversa.
-    </div>
-  </div>
+  <div id="conversa"></div>
 
   <form id="form">
     <div class="entrada">
-      <textarea id="pergunta" rows="1" placeholder="Ex.: o plano cobre óculos?"></textarea>
-      <button class="enviar" id="enviar" type="submit">Enviar</button>
+      <textarea id="pergunta" rows="1" disabled placeholder="Escolha um assunto acima para começar"></textarea>
+      <button class="enviar" id="enviar" type="submit" disabled>Enviar</button>
     </div>
     <div class="opcoes">
-      <span class="chip-assunto" id="chip-assunto" hidden title="O chatbot procura só neste assunto">
-        <span id="chip-texto"></span><button type="button" id="tirar-assunto" title="Tirar o assunto: o chatbot procura em tudo">✕</button>
+      <span class="chip-assunto" id="chip-assunto" hidden>
+        <span id="chip-texto"></span><button type="button" id="trocar-assunto">Trocar assunto</button>
       </span>
-      <label><input type="checkbox" id="pensar"> Pensar antes de responder (mais preciso, bem mais lento)</label>
     </div>
   </form>
 </main>
@@ -204,114 +222,60 @@ function cartaoLinks(links) {
   return `<div class="lista-rede"><b>Faça pelo app ou pelo site do IPASEM</b><div class="links-guia">${botoes}</div></div>`;
 }
 
-// --- Botões de assunto (menu.json + guia): resposta na hora, sem passar pelo modelo ---------
-let MENU = { assuntos: [] };
-// Assunto escolhido: vai junto com as perguntas digitadas e diz ao chatbot onde procurar
-// (rede: só a rede, sem artigos; autorizações/app: guia, sem tabela). ✕ volta ao caminho completo.
-let assuntoAtual = null;
-const DICA_PADRAO = $("pergunta").placeholder;
-
-function marcarAssunto(assunto) {
-  assuntoAtual = assunto ? assunto.id : null;
-  $("chip-assunto").hidden = !assunto;
-  $("chip-texto").textContent = assunto ? `Assunto: ${assunto.icone} ${assunto.titulo}` : "";
-  $("pergunta").placeholder = (assunto && assunto.exemplo) || DICA_PADRAO;
-}
-$("tirar-assunto").onclick = () => { marcarAssunto(null); $("pergunta").focus(); };
-
-function botoesAssuntos() {
-  return `<div class="assuntos">${MENU.assuntos.map((a, i) =>
-    `<button type="button" class="assunto" data-assunto="${i}">${escapar(a.icone)} ${escapar(a.titulo)}</button>`).join("")}</div>`;
+// "ORTOPEDIA E TRAUMATOLOGIA" -> "Ortopedia e Traumatologia" (o cadastro vem em maiúsculas).
+function bonito(texto) {
+  const minusculas = new Set(["e", "de", "da", "do", "das", "dos", "em"]);
+  return texto.toLowerCase().split(" ").map((p, i) =>
+    i && minusculas.has(p) ? p : p.charAt(0).toUpperCase() + p.slice(1)).join(" ");
 }
 
-function mostrarAssuntosNoInicio() {
-  const vazio = $("vazio");
-  if (!vazio || !MENU.assuntos.length || vazio.querySelector(".assuntos")) return;
-  vazio.insertAdjacentHTML("beforeend",
-    `<br><br><b>Ou escolha um assunto, que eu vou direto ao ponto:</b>${botoesAssuntos()}`);
+// Lista da rede credenciada, direto do cadastro: 5 primeiros, "Ver todos" e filtro por bairro.
+const NA_LISTA = 5;
+function cartaoRede(lista, titulo = "") {
+  const ps = lista.prestadores;
+  const bairros = {};
+  ps.forEach((p) => { if (p.bairro) bairros[p.bairro] = (bairros[p.bairro] || 0) + 1; });
+  const chips = Object.keys(bairros).length > 1
+    ? `<div class="chips-bairro"><button type="button" class="chip-bairro ativo" data-bairro="">Todos os bairros</button>${
+        Object.entries(bairros).sort((a, b) => b[1] - a[1]).map(([b, n]) =>
+          `<button type="button" class="chip-bairro" data-bairro="${escapar(b)}">${escapar(bonito(b))} (${n})</button>`).join("")}</div>` : "";
+  const cartoes = ps.map((p, i) => `
+    <div class="prestador" data-bairro-do="${escapar(p.bairro || "")}"${i >= NA_LISTA ? " hidden" : ""}><b>${escapar(p.nome)}</b>${p.local ? ` · ${escapar(p.local)}` : ""}<br>
+    ${escapar(bonito(p.especialidade))}<br>${escapar([p.endereco, p.bairro, p.cidade].filter(Boolean).join(", "))}<br>
+    📞 ${escapar(p.telefones.filter((t) => /\d/.test(t)).join(" / ") || "telefone não informado")}</div>`).join("");
+  const cidades = Object.entries(lista.por_cidade).map(([c, n]) => `${escapar(bonito(c))} ${n}`).join(" · ");
+  const mais = ps.length > NA_LISTA ? `<button type="button" class="ver-todos" data-ver-todos="1">Ver todos os ${ps.length}</button>` : "";
+  return `<div class="lista-rede">
+    <b>${titulo || `Rede credenciada: ${escapar(lista.especialidades.map(bonito).join(", "))}`} (dados de ${escapar(lista.dados_de)})</b>
+    ${ps.length ? "" : `<div class="metricas">Onde há: ${cidades}</div>`}${chips}${cartoes}${mais}
+    <div class="metricas">${escapar(lista.aviso)}</div></div>`;
 }
 
-async function carregarMenu() {
-  try { MENU = await (await fetch("api/menu")).json(); } catch { MENU = { assuntos: [] }; }
-  $("abrir-assuntos").hidden = !MENU.assuntos.length;
-  mostrarAssuntosNoInicio();
+// Filtro por bairro e "Ver todos": tudo na própria página, sem pedir nada ao servidor.
+function atualizarLista(caixa) {
+  const bairro = caixa.dataset.filtro || "";
+  const aberta = caixa.dataset.aberta === "1" || bairro;
+  const cartoes = [...caixa.querySelectorAll(".prestador")];
+  let i = 0;
+  cartoes.forEach((c) => {
+    const passa = !bairro || c.dataset.bairroDo === bairro;
+    c.hidden = !passa || (!aberta && i >= NA_LISTA);
+    if (passa) i++;
+  });
+  const botao = caixa.querySelector(".ver-todos");
+  if (botao) botao.hidden = !!aberta;
+  caixa.querySelectorAll(".chip-bairro").forEach((b) => b.classList.toggle("ativo", b.dataset.bairro === bairro));
 }
 
-function abrirMenu() {
-  marcarAssunto(null);
-  const msg = adicionarMensagem("assistente");
-  msg.innerHTML = `<div class="balao">Sobre o que você quer falar?${botoesAssuntos()}
-    <div class="metricas">Ou escreva a sua pergunta aqui embaixo.</div></div>`;
-  rolarParaBaixo();
+// Registro dos cliques (registro.py, no servidor). Falhar aqui nunca atrapalha a conversa.
+function registrar(dados) {
+  fetch("api/registrar", { method: "POST", headers: { "Content-Type": "application/json" },
+                           body: JSON.stringify(dados) }).catch(() => {});
 }
-
-function abrirAssunto(i) {
-  const assunto = MENU.assuntos[i];
-  adicionarMensagem("usuario").innerHTML = `<div class="balao">${escapar(assunto.icone)} ${escapar(assunto.titulo)}</div>`;
-  const msg = adicionarMensagem("assistente");
-  marcarAssunto(assunto);
-  const opcoes = assunto.opcoes.length
-    ? `<div class="opcoes-menu">${assunto.opcoes.map((o, j) =>
-        `<button type="button" class="opcao-menu" data-opcao="${i}:${j}">${escapar(o.titulo)}</button>`).join("")}</div>
-       <div class="metricas">Ou escreva a sua dúvida sobre este assunto aqui embaixo.</div>`
-    : `<div class="metricas">Pode escrever aqui embaixo.</div>`;
-  msg.innerHTML = `<div class="balao">${escapar(assunto.aviso)}${opcoes}</div>`;
-  rolarParaBaixo();
-  if (!assunto.opcoes.length) $("pergunta").focus();
-}
-
-function responderOpcao(i, j) {
-  const opcao = MENU.assuntos[i].opcoes[j];
-  adicionarMensagem("usuario").innerHTML = `<div class="balao">${escapar(opcao.titulo)}</div>`;
-  const msg = adicionarMensagem("assistente");
-  const passo = opcao.passo_a_passo
-    ? `<details><summary>Passo a passo completo (${escapar(opcao.passo_a_passo.id)}: ${escapar(opcao.passo_a_passo.titulo)})</summary>
-       <div class="fonte">${formatarGuia(opcao.passo_a_passo.texto)}</div></details>` : "";
-  msg.innerHTML = `<div class="balao">${formatarGuia(opcao.resposta)}</div>
-    <div class="detalhes">${cartaoLinks(opcao.links)}${passo}
-    <div class="metricas">⚡ Resposta direto do guia do app e do site (${escapar(opcao.fonte)}), sem passar pelo modelo ·
-    ainda com dúvida? Escreva aqui embaixo.
-    <button type="button" class="nao-era" data-menu="1">Outros assuntos</button></div></div>`;
-  // Entra na conversa: "e no app?" logo depois é entendido como continuação.
-  conversa.push({ pergunta: opcao.titulo, resposta: opcao.resposta });
-  rolarParaBaixo();
-}
-
-document.addEventListener("click", (e) => {
-  const alvo = e.target.closest("[data-assunto], [data-opcao], [data-menu]");
-  if (!alvo || ocupado) return;
-  if (alvo.dataset.assunto !== undefined) abrirAssunto(Number(alvo.dataset.assunto));
-  else if (alvo.dataset.opcao) responderOpcao(...alvo.dataset.opcao.split(":").map(Number));
-  else abrirMenu();
-});
 
 function rolarParaBaixo() {
   const c = $("conversa");
   c.scrollTop = c.scrollHeight;
-}
-
-async function carregarSugestoes() {
-  const dados = await (await fetch("api/sugestoes")).json();
-  $("info").textContent = `Teste local · resposta: ${dados.modelo} · busca: qwen3-embedding:0.6b`;
-  let categoriaAtual = "";
-  for (const item of dados.perguntas) {
-    if (item.categoria !== categoriaAtual) {
-      categoriaAtual = item.categoria;
-      const titulo = document.createElement("div");
-      titulo.className = "categoria";
-      titulo.textContent = categoriaAtual;
-      $("sugestoes").appendChild(titulo);
-    }
-    const botao = document.createElement("button");
-    botao.className = "sugestao";
-    botao.textContent = item.pergunta;
-    botao.onclick = () => {
-      if (ocupado) return;
-      botao.classList.add("feita");
-      perguntar(item.pergunta, item);
-    };
-    $("sugestoes").appendChild(botao);
-  }
 }
 
 function adicionarMensagem(classe) {
@@ -322,13 +286,225 @@ function adicionarMensagem(classe) {
   return msg;
 }
 
-async function perguntar(pergunta, gabarito = null, semConversa = false) {
+// --- Assuntos (menu.json): a conversa começa pela escolha do assunto -------------------------
+// O assunto vai junto com cada pergunta digitada e diz ao chatbot onde procurar (rede: só a
+// rede; autorizações/app: guia; regulamento: artigos e tabela). Sem assunto, não dá para digitar.
+let MENU = { assuntos: [] };
+let assuntoAtual = null;
+
+const acharAssunto = (id) => MENU.assuntos.find((a) => a.id === id);
+
+function marcarAssunto(assunto) {
+  assuntoAtual = assunto ? assunto.id : null;
+  $("chip-assunto").hidden = !assunto;
+  $("chip-texto").textContent = assunto ? `Assunto: ${assunto.icone} ${assunto.titulo}` : "";
+  $("pergunta").disabled = !assunto;
+  $("enviar").disabled = !assunto || ocupado;
+  $("pergunta").placeholder = assunto
+    ? (assunto.exemplo || "Escreva a sua dúvida sobre este assunto")
+    : "Escolha um assunto acima para começar";
+}
+
+function botoesAssuntos() {
+  return `<div class="assuntos">${MENU.assuntos.map((a) =>
+    `<button type="button" class="assunto" data-assunto="${escapar(a.id)}">${escapar(a.icone)} ${escapar(a.titulo)}</button>`).join("")}</div>`;
+}
+
+function telaInicial(texto = "") {
+  conversa = [];
+  marcarAssunto(null);
+  $("conversa").innerHTML = `<div class="vazio" id="vazio">${texto ? `<p>${escapar(texto)}</p>` : ""}
+    <h2>Escolha um assunto para iniciar a conversa</h2>${botoesAssuntos()}</div>`;
+}
+
+async function carregarMenu() {
+  try { MENU = await (await fetch("api/menu")).json(); } catch { MENU = { assuntos: [] }; }
+  telaInicial();
+}
+
+function abrirMenu() {
+  marcarAssunto(null);
+  const msg = adicionarMensagem("assistente");
+  msg.innerHTML = `<div class="balao">Sobre o que você quer falar agora?${botoesAssuntos()}</div>`;
+  rolarParaBaixo();
+}
+
+function abrirAssunto(id) {
+  const assunto = acharAssunto(id);
+  if (!assunto) return;
+  registrar({ tipo: "assunto", assunto: id });
+  adicionarMensagem("usuario").innerHTML = `<div class="balao">${escapar(assunto.icone)} ${escapar(assunto.titulo)}</div>`;
+  const msg = adicionarMensagem("assistente");
+  marcarAssunto(assunto);
+  if (assunto.fluxo === "rede") { mostrarFormRede(msg, assunto); return; }
+  const opcoes = assunto.opcoes.length
+    ? `<div class="opcoes-menu">${assunto.opcoes.map((o, j) =>
+        `<button type="button" class="opcao-menu" data-opcao="${escapar(id)}:${j}">${escapar(o.titulo)}</button>`).join("")}</div>
+       <div class="metricas">Ou escreva a sua dúvida sobre este assunto aqui embaixo.</div>`
+    : `<div class="metricas">Pode escrever aqui embaixo.</div>`;
+  msg.innerHTML = `<div class="balao">${escapar(assunto.aviso)}${opcoes}</div>`;
+  rolarParaBaixo();
+  $("pergunta").focus();
+}
+
+// Resposta pronta do guia: na hora, sem passar pelo modelo.
+function responderOpcao(id, j) {
+  const opcao = acharAssunto(id).opcoes[j];
+  registrar({ tipo: "botao", assunto: id, opcao: opcao.titulo });
+  adicionarMensagem("usuario").innerHTML = `<div class="balao">${escapar(opcao.titulo)}</div>`;
+  const msg = adicionarMensagem("assistente");
+  const passo = opcao.passo_a_passo
+    ? `<details><summary>Passo a passo completo</summary>
+       <div class="fonte">${formatarGuia(opcao.passo_a_passo.texto)}</div></details>` : "";
+  msg.innerHTML = `<div class="balao">${formatarGuia(opcao.resposta)}</div>
+    <div class="detalhes">${cartaoLinks(opcao.links)}${passo}
+    <div class="metricas">Ainda com dúvida? Escreva aqui embaixo.</div></div>`;
+  // Entra na conversa: "e no app?" logo depois é entendido como continuação.
+  conversa.push({ pergunta: opcao.titulo, resposta: opcao.resposta });
+  rolarParaBaixo();
+}
+
+// --- Rede credenciada pela página: cidade (obrigatória) + especialidade (opcional), sem modelo --
+let CIDADES = null;
+const semAcento = (t) => t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+
+async function mostrarFormRede(msg, assunto) {
+  try { CIDADES = CIDADES || (await (await fetch("api/rede/cidades")).json()).cidades; } catch { CIDADES = []; }
+  msg.innerHTML = `<div class="balao">${escapar(assunto.aviso)}
+    <div class="form-rede">
+      <label>Cidade <span class="nota">(obrigatória)</span>
+        <select class="campo-cidade"><option value="">Escolha a cidade</option>${CIDADES.map((c) =>
+          `<option value="${escapar(c.id)}">${escapar(bonito(c.nome))} (${c.total})</option>`).join("")}</select></label>
+      <div><label>Especialidade <span class="nota">[opcional]</span></label>
+        <div class="lista-busca">
+          <button type="button" class="abrir-busca" disabled>Escolha a cidade primeiro</button>
+          <div class="painel-busca" hidden>
+            <input type="search" class="pesquisa" placeholder="Pesquisar especialidade..." autocomplete="off">
+            <div class="itens-busca"></div>
+          </div>
+        </div></div>
+      <button type="button" class="buscar-rede" disabled>Buscar</button>
+    </div></div>`;
+  const form = msg.querySelector(".form-rede");
+  const campoCidade = form.querySelector(".campo-cidade");
+  const abrir = form.querySelector(".abrir-busca"), painel = form.querySelector(".painel-busca");
+  const pesquisa = form.querySelector(".pesquisa"), itens = form.querySelector(".itens-busca");
+  const buscar = form.querySelector(".buscar-rede");
+  let especialidades = [], escolhida = "";
+
+  function desenharItens() {
+    const termo = semAcento(pesquisa.value.trim());
+    const todas = [{ nome: "", total: null }, ...especialidades];  // "" = todas as especialidades
+    itens.innerHTML = todas.filter((e) => !termo || semAcento(e.nome).includes(termo)).map((e) =>
+      `<button type="button" class="item-busca${e.nome === escolhida ? " escolhido" : ""}" data-valor="${escapar(e.nome)}">
+        ${e.nome ? escapar(bonito(e.nome)) : "<i>Todas as especialidades</i>"}${e.total ? ` <span class="qtd">(${e.total})</span>` : ""}</button>`).join("")
+      || `<div class="metricas">Nenhuma especialidade com esse nome nesta cidade.</div>`;
+  }
+  function escolher(nome) {
+    escolhida = nome;
+    abrir.textContent = nome ? bonito(nome) : "Todas as especialidades";
+    painel.hidden = true;
+  }
+
+  campoCidade.onchange = async () => {
+    escolher("");
+    buscar.disabled = abrir.disabled = !campoCidade.value;
+    if (!campoCidade.value) { abrir.textContent = "Escolha a cidade primeiro"; return; }
+    abrir.textContent = "Carregando...";
+    especialidades = (await (await fetch(`api/rede/especialidades?cidade=${encodeURIComponent(campoCidade.value)}`)).json()).especialidades;
+    escolher("");
+  };
+  abrir.onclick = () => {
+    painel.hidden = !painel.hidden;
+    if (!painel.hidden) { pesquisa.value = ""; desenharItens(); pesquisa.focus(); }
+  };
+  pesquisa.oninput = desenharItens;
+  pesquisa.onkeydown = (e) => {  // Enter escolhe a primeira da lista filtrada; Esc fecha
+    if (e.key === "Enter") { e.preventDefault(); const p = itens.querySelector(".item-busca"); if (p) escolher(p.dataset.valor); }
+    if (e.key === "Escape") painel.hidden = true;
+  };
+  itens.onclick = (e) => { const item = e.target.closest(".item-busca"); if (item) escolher(item.dataset.valor); };
+  document.addEventListener("click", (e) => { if (!form.querySelector(".lista-busca").contains(e.target)) painel.hidden = true; });
+  buscar.onclick = () => {
+    if (ocupado || !campoCidade.value) return;
+    const cidade = CIDADES.find((c) => c.id === campoCidade.value);
+    buscarNaRede(cidade, escolhida);
+  };
+  rolarParaBaixo();
+}
+
+async function buscarNaRede(cidade, especialidade) {
+  const nomeCidade = bonito(cidade.nome);
+  const pedido = especialidade ? `${bonito(especialidade)} em ${nomeCidade}` : `Todos os prestadores em ${nomeCidade}`;
+  adicionarMensagem("usuario").innerHTML = `<div class="balao">${escapar(pedido)}</div>`;
+  const msg = adicionarMensagem("assistente");
+  msg.innerHTML = `<div class="balao"><span class="status">Procurando...</span></div>`;
+  const url = `api/rede/lista?cidade=${encodeURIComponent(cidade.id)}` +
+              (especialidade ? `&especialidade=${encodeURIComponent(especialidade)}` : "");
+  const { lista } = await (await fetch(url)).json();
+  if (!lista) { msg.innerHTML = `<div class="balao">Não encontrei ninguém com essa escolha. Tente outra cidade ou especialidade.</div>`; return; }
+  const n = lista.prestadores.length;
+  const texto = (especialidade
+    ? `Encontrei ${n} de ${bonito(especialidade)} em ${nomeCidade}.`
+    : `Encontrei ${n} prestadores em ${nomeCidade}. Para ver só uma especialidade, escolha no quadro acima.`) +
+    " A rede muda com frequência: confirme por telefone antes de ir.";
+  const titulo = especialidade ? "" : `Rede credenciada em ${escapar(nomeCidade)}`;
+  msg.innerHTML = `<div class="balao">${escapar(texto)}</div><div class="detalhes">${cartaoRede(lista, titulo)}
+    <div class="metricas">Dá para filtrar por bairro nos botões acima da lista. Outra dúvida? Escreva aqui embaixo.</div></div>`;
+  // Entra na conversa: "e em São Leopoldo?" depois é entendido como continuação.
+  conversa.push({ pergunta: especialidade ? `Quem atende ${bonito(especialidade)} em ${nomeCidade}?`
+                                          : `Quem atende em ${nomeCidade}?`, resposta: texto });
+  rolarParaBaixo();
+}
+
+// A pergunta parece ser de outro assunto: pergunta antes de responder.
+function oferecerTroca(msg, ev, pergunta) {
+  const atual = acharAssunto(ev.atual), sugerido = acharAssunto(ev.sugerido);
+  if (!sugerido) { perguntar(pergunta, { manter: true, semBalao: true }); return; }
+  msg.innerHTML = `<div class="balao">Essa pergunta parece ser sobre <b>${escapar(sugerido.icone)} ${escapar(sugerido.titulo)}</b>.
+    Quer mudar de assunto?<div class="botoes-troca">
+    <button type="button" class="botao-troca principal" data-troca="sim">Sim, mudar para ${escapar(sugerido.titulo)}</button>
+    <button type="button" class="botao-troca" data-troca="nao">Não, continuar em ${escapar(atual ? atual.titulo : "este assunto")}</button>
+    </div></div>`;
+  msg.querySelectorAll("[data-troca]").forEach((b) => b.onclick = () => {
+    if (ocupado) return;
+    const aceitou = b.dataset.troca === "sim";
+    msg.querySelectorAll("[data-troca]").forEach((x) => x.disabled = true);
+    registrar({ tipo: "mudar_assunto", de: ev.atual, para: ev.sugerido, aceitou, pergunta });
+    if (aceitou) marcarAssunto(sugerido);
+    perguntar(pergunta, { manter: true, semBalao: true });
+  });
+}
+
+document.addEventListener("click", (e) => {
+  // Filtros da lista da rede: funcionam mesmo enquanto outra resposta está sendo gerada.
+  const filtro = e.target.closest("[data-bairro], [data-ver-todos]");
+  if (filtro) {
+    const caixa = filtro.closest(".lista-rede");
+    if (filtro.dataset.verTodos) caixa.dataset.aberta = "1";
+    else caixa.dataset.filtro = filtro.dataset.bairro;
+    atualizarLista(caixa);
+    return;
+  }
+  const alvo = e.target.closest("[data-assunto], [data-opcao]");
+  if (!alvo || ocupado) return;
+  if (alvo.dataset.assunto !== undefined) abrirAssunto(alvo.dataset.assunto);
+  else {
+    const [id, j] = alvo.dataset.opcao.split(":");
+    responderOpcao(id, Number(j));
+  }
+});
+
+// --- Pergunta digitada ---------------------------------------------------------------------
+// opcoes.manter: não oferece troca de assunto (já foi decidido). opcoes.semBalao: a pergunta já
+// está na tela. opcoes.semConversa: "Não era isso", refaz sem a conversa.
+async function perguntar(pergunta, opcoes = {}) {
   ocupado = true;
   $("enviar").disabled = true;
 
-  adicionarMensagem("usuario").innerHTML = `<div class="balao">${formatar(pergunta)}</div>`;
+  if (!opcoes.semBalao) adicionarMensagem("usuario").innerHTML = `<div class="balao">${formatar(pergunta)}</div>`;
   const msg = adicionarMensagem("assistente");
-  msg.innerHTML = `<div class="balao"><span class="status">Buscando artigos...</span><span class="texto"></span></div><div class="detalhes"></div>`;
+  msg.innerHTML = `<div class="balao"><span class="status">Procurando...</span><span class="texto"></span></div><div class="detalhes"></div>`;
   const status = msg.querySelector(".status");
   const areaTexto = msg.querySelector(".texto");
   const detalhes = msg.querySelector(".detalhes");
@@ -341,16 +517,15 @@ async function perguntar(pergunta, gabarito = null, semConversa = false) {
 
   let resposta = "";
   let entendida = pergunta;
-  // Perguntas de teste são completas e "Não era isso" pede a pergunta crua: vão sem a conversa.
-  const historico = gabarito || semConversa ? [] : conversa.slice(-TROCAS_ENVIADAS);
+  let troca = null;
+  const historico = opcoes.semConversa ? [] : conversa.slice(-TROCAS_ENVIADAS);
   if (historico.length) status.textContent = status.dataset.base = "Entendendo a pergunta...";
   try {
     const r = await fetch("api/perguntar", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      // Perguntas de teste e "Não era isso" vão sem assunto (caminho completo).
       body: JSON.stringify({ pergunta, pensar: $("pensar").checked, historico,
-                             assunto: gabarito || semConversa ? null : assuntoAtual }),
+                             assunto: assuntoAtual, manter_assunto: !!opcoes.manter }),
     });
     const leitor = r.body.getReader();
     const decodificador = new TextDecoder();
@@ -365,16 +540,20 @@ async function perguntar(pergunta, gabarito = null, semConversa = false) {
 
       for (const linha of linhas.filter(Boolean)) {
         const ev = JSON.parse(linha);
-        if (ev.tipo === "fontes") {
+        if (ev.tipo === "mudar_assunto") {
+          troca = ev;
+        } else if (ev.tipo === "fontes") {
           status.dataset.base = "Gerando resposta...";
-          const itens = ev.fontes.map((f) => `
-            <div class="fonte">
-              <b>${escapar(f.id)}</b> (${escapar(f.paginas)}) · similaridade ${f.similaridade.toFixed(3)}<br>
-              <span class="pedaco">Trecho que casou: ${escapar(f.pedaco)}</span>
-              <details><summary>Ver artigo inteiro</summary><pre>${escapar(f.texto)}</pre></details>
-            </div>`).join("");
-          detalhes.insertAdjacentHTML("beforeend",
-            `<details><summary>Artigos enviados ao modelo: ${ev.fontes.map((f) => escapar(f.id)).join(", ")}</summary>${itens}</details>`);
+          if (ev.fontes.length) {
+            const itens = ev.fontes.map((f) => `
+              <div class="fonte">
+                <b>${escapar(f.id)}</b> (${escapar(f.paginas)}) · similaridade ${f.similaridade.toFixed(3)}<br>
+                <span class="pedaco">Trecho que casou: ${escapar(f.pedaco)}</span>
+                <details><summary>Ver artigo inteiro</summary><pre>${escapar(f.texto)}</pre></details>
+              </div>`).join("");
+            detalhes.insertAdjacentHTML("beforeend",
+              `<details><summary>Artigos consultados: ${ev.fontes.map((f) => escapar(f.id)).join(", ")}</summary>${itens}</details>`);
+          }
         } else if (ev.tipo === "ferramenta") {
           const itens = ev.resumo.map((l) => `<div class="fonte">${escapar(l)}</div>`).join("");
           let titulo;
@@ -390,32 +569,21 @@ async function perguntar(pergunta, gabarito = null, semConversa = false) {
           }
           detalhes.insertAdjacentHTML("beforeend",
             `<details><summary>${titulo}</summary>${itens || "<div class='fonte'>Nada encontrado.</div>"}</details>`);
-          if (ev.lista) {
-            // Contatos direto do cadastro: o modelo não copia endereço nem telefone.
-            const cartoes = ev.lista.prestadores.map((p) => `
-              <div class="prestador"><b>${escapar(p.nome)}</b>${p.local ? ` · ${escapar(p.local)}` : ""}<br>
-              ${escapar(p.especialidade)}<br>${escapar([p.endereco, p.bairro, p.cidade].filter(Boolean).join(", "))}<br>
-              📞 ${escapar(p.telefones.join(" / ") || "telefone não informado")}</div>`).join("");
-            const cidades = Object.entries(ev.lista.por_cidade).map(([c, n]) => `${escapar(c)} ${n}`).join(" · ");
-            detalhes.insertAdjacentHTML("beforeend", `<div class="lista-rede">
-              <b>Rede credenciada: ${escapar(ev.lista.especialidades.join(", "))} (dados de ${escapar(ev.lista.dados_de)})</b>
-              <div class="metricas">Onde há: ${cidades}</div>${cartoes}
-              <div class="metricas">${escapar(ev.lista.aviso)}</div></div>`);
-          }
+          // Contatos direto do cadastro: o modelo não copia endereço nem telefone.
+          if (ev.lista) detalhes.insertAdjacentHTML("beforeend", cartaoRede(ev.lista));
         } else if (ev.tipo === "guia") {
           // Links direto do código (guia.py): o modelo não escreve endereço de site.
-          detalhes.insertAdjacentHTML("beforeend",
-            `<details><summary>📱 ${escapar(ev.id)}: ${escapar(ev.titulo)} · similaridade ${ev.similaridade.toFixed(3)}</summary>
-             <div class="fonte"><span class="pedaco">Trecho que casou: ${escapar(ev.pedaco)}</span>
-             <pre>${escapar(ev.texto)}</pre></div></details>`);
           detalhes.insertAdjacentHTML("beforeend", cartaoLinks(ev.links));
+          detalhes.insertAdjacentHTML("beforeend",
+            `<details><summary>📱 ${escapar(ev.id)}: ${escapar(ev.titulo)}</summary>
+             <div class="fonte">${formatarGuia(ev.texto)}</div></details>`);
         } else if (ev.tipo === "alerta") {
           msg.insertAdjacentHTML("afterbegin", `<div class="alerta">⚠️ ${escapar(ev.mensagem)}</div>`);
         } else if (ev.tipo === "reescrita") {
           entendida = ev.pergunta;
-          status.dataset.base = "Buscando artigos...";
+          status.dataset.base = "Procurando...";
           detalhes.insertAdjacentHTML("beforeend",
-            `<div class="metricas">💬 Entendi como: “${escapar(ev.pergunta)}” (${ev.segundos}s)
+            `<div class="metricas">💬 Entendi como: “${escapar(ev.pergunta)}”
              <button type="button" class="nao-era">Não era isso: perguntar sem a conversa</button></div>`);
           const original = ev.original, entendidaErrada = ev.pergunta;
           detalhes.querySelector(".nao-era").onclick = (e) => {
@@ -423,14 +591,14 @@ async function perguntar(pergunta, gabarito = null, semConversa = false) {
             e.target.disabled = true;
             // A troca mal entendida sai da conversa, para não atrapalhar as próximas.
             conversa = conversa.filter((t) => t.pergunta !== entendidaErrada);
-            perguntar(original, null, true);
+            perguntar(original, { semConversa: true, manter: true });
           };
         } else if (ev.tipo === "memoria") {
           const itens = ev.itens.map((i) => `
             <div class="fonte"><b>${escapar(i.pergunta)}</b>${i.artigos.length ? ` (${escapar(i.artigos.join(", "))})` : ""}<br>${formatar(i.resposta)}</div>`).join("");
           const titulo = ev.modo === "exata"
-            ? "✅ Resposta validada, vinda da memória (sem passar pelo modelo)"
-            : `📌 ${ev.itens.length} resposta(s) validada(s) ligada(s) a esses artigos foram junto para o modelo`;
+            ? "✅ Resposta validada pela equipe"
+            : `📌 ${ev.itens.length} resposta(s) validada(s) consultada(s)`;
           detalhes.insertAdjacentHTML("beforeend", `<details><summary>${titulo}</summary>${itens}</details>`);
         } else if (ev.tipo === "pensando") {
           status.dataset.base = "Pensando...";
@@ -438,14 +606,14 @@ async function perguntar(pergunta, gabarito = null, semConversa = false) {
           if (status.isConnected) status.remove();
           resposta += ev.texto;
           areaTexto.innerHTML = formatar(resposta);
-        } else if (ev.tipo === "fim") {
+        } else if (ev.tipo === "fim" && ev.origem !== "mudar_assunto") {
           let metricas;
           if (ev.origem === "memoria") {
-            metricas = `✅ Resposta validada da memória · ${ev.tempo_total}s`;
+            metricas = `✅ Resposta validada · ${ev.tempo_total}s`;
           } else if (ev.origem === "cache") {
-            metricas = `♻️ Resposta reaproveitada (esta pergunta já tinha sido respondida em ${escapar(ev.gerada_em)}) · ${ev.tempo_total}s agora, ${ev.tempo_original}s na primeira vez`;
+            metricas = `♻️ Resposta reaproveitada · ${ev.tempo_total}s (a primeira levou ${ev.tempo_original}s)`;
           } else {
-            metricas = `${ev.tempo_total}s no total (busca ${ev.tempo_busca}s) · ${ev.consultas_tabela} consulta(s) à tabela${ev.consultas_rede ? ` · ${ev.consultas_rede} à rede` : ""} · ${ev.tokens_por_segundo} tokens/s · raciocínio ${$("pensar").checked ? "ligado" : "desligado"}`;
+            metricas = `${ev.tempo_total}s · ${ev.tokens_por_segundo} tokens/s`;
           }
           detalhes.insertAdjacentHTML("beforeend", `<div class="metricas">${metricas}</div>`);
         } else if (ev.tipo === "erro") {
@@ -461,21 +629,17 @@ async function perguntar(pergunta, gabarito = null, semConversa = false) {
   }
 
   clearInterval(cronometro);
-  if (gabarito) {
-    detalhes.insertAdjacentHTML("beforeend", `
-      <div class="gabarito"><b>Gabarito (${escapar(gabarito.categoria)})</b><br>
-      ${escapar(gabarito.resposta_esperada)}<br><i>Fonte: ${escapar(gabarito.fontes)}</i></div>`);
-  }
-  rolarParaBaixo();
   ocupado = false;
-  $("enviar").disabled = false;
-  $("pergunta").focus();
+  $("enviar").disabled = !assuntoAtual;
+  if (troca) oferecerTroca(msg, troca, pergunta);
+  rolarParaBaixo();
+  if (!troca) $("pergunta").focus();
 }
 
 $("form").onsubmit = (e) => {
   e.preventDefault();
   const pergunta = $("pergunta").value.trim();
-  if (!pergunta || ocupado) return;
+  if (!pergunta || ocupado || !assuntoAtual) return;
   $("pergunta").value = "";
   perguntar(pergunta);
 };
@@ -488,25 +652,10 @@ $("pergunta").addEventListener("keydown", (e) => {
   }
 });
 
-// Nova conversa: esquece as trocas anteriores e limpa a tela.
-$("nova").onclick = () => {
-  if (ocupado) return;
-  conversa = [];
-  marcarAssunto(null);
-  $("conversa").innerHTML = `<div class="vazio" id="vazio">Nova conversa. As perguntas anteriores foram esquecidas.</div>`;
-  mostrarAssuntosNoInicio();
-  $("pergunta").focus();
-};
+// Nova conversa: esquece as trocas anteriores e volta para a escolha do assunto.
+$("nova").onclick = () => { if (!ocupado) telaInicial("Nova conversa. As perguntas anteriores foram esquecidas."); };
+$("trocar-assunto").onclick = () => { if (!ocupado) abrirMenu(); };
 
-$("abrir-assuntos").onclick = () => { if (!ocupado) abrirMenu(); };
-
-// Barra de perguntas de teste: recolhida por padrão.
-$("alternar").onclick = () => {
-  const aberta = document.body.classList.toggle("com-sugestoes");
-  $("alternar").setAttribute("aria-expanded", aberta);
-};
-
-carregarSugestoes();
 carregarMenu();
 </script>
 </body>

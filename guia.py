@@ -316,6 +316,16 @@ def _resposta_da_frequente(unidade: dict) -> str:
     return re.sub(r"^- \*\*.+?\*\*\s*", "", unidade["texto"]).strip()
 
 
+def assunto_do_bloco(bloco: str | None) -> str | None:
+    """Bloco do vocabulário ("Carteirinha") -> assunto do menu a que ele pertence ("app")."""
+    if not bloco or not ARQUIVO_MENU.exists():
+        return None
+    for assunto in json.loads(ARQUIVO_MENU.read_text(encoding="utf-8")).get("assuntos", []):
+        if bloco in assunto.get("blocos", []):
+            return assunto["id"]
+    return None
+
+
 def menu(recursos: set[str] = frozenset()) -> dict:
     """Os assuntos de menu.json com o texto do guia já resolvido, para a página.
     Dois tipos de assunto: com "opcoes" (respostas do guia na hora; precisam do guia) e sem
@@ -329,9 +339,9 @@ def menu(recursos: set[str] = frozenset()) -> dict:
     frequentes = {normalizar(s["titulo"].split(":", 1)[-1]): s for s in unidades if s["numero"] in POR_ITEM}
     assuntos, problemas = [], []
     for assunto in estrutura.get("assuntos", []):
-        campos = {k: assunto.get(k, "") for k in ("id", "icone", "titulo", "aviso", "exemplo")}
+        campos = {k: assunto.get(k, "") for k in ("id", "icone", "titulo", "aviso", "exemplo", "fluxo")}
         if "opcoes" not in assunto:  # assunto de pergunta livre
-            if assunto.get("requer") in recursos:
+            if not assunto.get("requer") or assunto["requer"] in recursos:
                 assuntos.append(campos | {"opcoes": []})
             continue
         if not unidades:

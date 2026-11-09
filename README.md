@@ -111,8 +111,16 @@ flowchart LR
     resposta do guia, com os links e o passo a passo, **sem passar pelo modelo**. Em "Quem atende
     (rede credenciada)", o botão marca o assunto e a pergunta digitada vai só para a rede: sem os
     4 artigos, sem o guia e sem as instruções do regulamento, que a resposta da rede não usa.
-    Medido nas mesmas 11 perguntas da rede: **50,7 s -> 24,0 s**, com 11/11 nas duas rodadas. O
-    assunto aparece perto da caixa de texto e sai com um clique (o ✕ volta ao caminho completo).
+    Medido nas mesmas 11 perguntas da rede: **50,7 s -> 24,0 s**, com 11/11 nas duas rodadas.
+13. **A conversa começa pelo assunto.** A tela abre com "Escolha um assunto para iniciar a
+    conversa" (Cobertura, regras e valores · Quem atende · Autorizações · App, senha e
+    carteirinha), e só depois a caixa de texto libera. Se a pergunta digitada tem sinal claro de
+    outro assunto ("o plano cobre óculos?" dentro de Quem atende), o chatbot pergunta "Quer mudar
+    de assunto?" antes de gastar o modelo (regra no código, 25/25 em `avaliar_assunto.py`). Na
+    rede, um quadro com cidade (obrigatória) e especialidade (opcional, com pesquisa) mostra os
+    contatos direto do cadastro, sem o modelo, com "Ver todos" e filtro por bairro. As conversas
+    são registradas (`registro.py`, fora do Git, com CPF, telefone e e-mail mascarados) para
+    descobrir o que vale virar resposta pronta (`memoria.md`) ou caso de eval.
 
 ## Resultados
 

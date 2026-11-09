@@ -31,3 +31,15 @@ Também perguntam:
 - Tenho direito a quantas consultas com psiquiatra por ano?
 - Quantas consultas de psiquiatria por ano o plano cobre?
 -->
+
+## Quanto tempo demora para autorizar um exame?
+A resposta correta é: A autorização de exame não sai na hora: o pedido vai para análise do IPASEM e o retorno vem em até 72 horas úteis. Você pede pelo app ou pelo site, em "Autorização de Exames", anexando a foto ou o PDF da requisição médica, e acompanha em "Retorno de Autorizações de Exames" (no app, "Retorno de Exames"). Depois de autorizada, ela vale por 30 dias a partir da emissão (Guia do app e do site, seção 5).
+Também perguntam:
+- tempo pra autorizar um exame
+- tempo para autorizar exame
+- quanto tempo demora pra liberar o exame?
+- quanto tempo demora para autorizar um exame?
+- qual o prazo para autorizar um exame?
+- em quanto tempo sai a autorização do exame?
+- quanto tempo leva a autorização de exame?
+- demora quanto pra autorizar exame?

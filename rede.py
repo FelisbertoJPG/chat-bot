@@ -171,18 +171,94 @@ def consultar_rede(especialidade: str, cidade: str | None = None, bairro: str | 
                  if r["_cidade"].startswith(alvo_cidade) or alvo_cidade.startswith(r["_cidade"])]
     mesmo_bairro = [r for r in na_cidade if alvo_bairro and (alvo_bairro in r["_bairro"] or r["_bairro"] in alvo_bairro)]
     ordem = mesmo_bairro + [r for r in na_cidade if r not in mesmo_bairro]
+    cartoes = [_cartao(r) for r in ordem[:MAX_NA_TELA]]
     resultado.update({
         "local_pedido": {"cidade": cidade or resultado.get("cidade_assumida"), "bairro": bairro},
         "no_bairro": len(mesmo_bairro), "na_cidade": len(na_cidade),
-        "prestadores": [{
-            "nome": r["nome_prestador"],
-            "local": r["nome_vinculo"] if r["nome_vinculo"] and r["nome_vinculo"] != r["nome_prestador"] else None,
-            "especialidade": r["especialidade"],
-            "endereco": r["endereco_coml1"], "bairro": r["bairro_coml1"], "cidade": r["cidade_coml1"],
-            "telefones": _telefones(r),
-        } for r in ordem[:MAX_PRESTADORES]],
+        "prestadores": cartoes[:MAX_PRESTADORES],  # o que o modelo vê (nomes e bairros)
+        # Todos os da cidade, só para a tela ("Ver todos", filtro por bairro). Começa com "_":
+        # rag.py tira antes de mandar o resultado ao modelo.
+        "_todos": cartoes,
     })
     return resultado
+
+
+MAX_NA_TELA = 300  # psicologia em Novo Hamburgo tem bem mais que 5; a tela mostra 5 e "Ver todos"
+
+
+def _cartao(r: dict) -> dict:
+    return {
+        "nome": r["nome_prestador"],
+        "local": r["nome_vinculo"] if r["nome_vinculo"] and r["nome_vinculo"] != r["nome_prestador"] else None,
+        "especialidade": r["especialidade"],
+        "endereco": r["endereco_coml1"], "bairro": r["bairro_coml1"], "cidade": r["cidade_coml1"],
+        "telefones": _telefones(r),
+    }
+
+
+# --- Para os botões da página (sem modelo) ---------------------------------------------------
+
+# Busca pela página: cidade obrigatória, especialidade opcional. A cidade é identificada pela forma
+# normalizada ("sao leopoldo"), porque o cadastro tem a mesma cidade com e sem acento.
+MAX_NA_CIDADE = 1000  # Novo Hamburgo tem 682 prestadores; a tela mostra 5 e "Ver todos"
+
+
+def cidades() -> list[dict]:
+    """Todas as cidades da rede, com quantos prestadores (únicos) em cada, da maior para a menor.
+    "id" é a forma normalizada; "nome", a grafia do cadastro (a acentuada, se houver)."""
+    dados = carregar()
+    if dados is None:
+        return []
+    regs: dict[str, set] = {}
+    grafias: dict[str, set] = {}
+    for r in dados["linhas"]:
+        regs.setdefault(r["_cidade"], set()).add(r["registro"])
+        grafias.setdefault(r["_cidade"], set()).add(r["cidade_coml1"])
+    def nome(c):  # "SÃO LEOPOLDO" no lugar de "SAO LEOPOLDO"
+        return max(grafias[c], key=lambda g: (g != g.encode("ascii", "ignore").decode(), g))
+    return sorted(({"id": c, "nome": nome(c), "total": len(v)} for c, v in regs.items()),
+                  key=lambda c: (-c["total"], c["id"]))
+
+
+def especialidades(cidade: str | None = None) -> list[dict]:
+    """As especialidades (de uma cidade, ou de toda a rede), com quantos prestadores, em ordem
+    alfabética (a página tem pesquisa; a ordem do alfabeto é a mais fácil de percorrer)."""
+    dados = carregar()
+    if dados is None:
+        return []
+    alvo = normalizar(cidade) if cidade else None
+    por_nome: dict[str, set] = {}
+    for r in dados["linhas"]:
+        if alvo is None or r["_cidade"] == alvo:
+            por_nome.setdefault(r["especialidade"], set()).add(r["registro"])
+    return sorted(({"nome": n, "total": len(v)} for n, v in por_nome.items()), key=lambda e: e["nome"])
+
+
+def lista(cidade: str, especialidade: str | None = None) -> dict | None:
+    """Os prestadores de uma cidade (e de uma especialidade, se vier), para a tela, sem o modelo.
+    Sem especialidade, cada prestador aparece uma vez, com todas as especialidades dele."""
+    dados = carregar()
+    if dados is None:
+        return None
+    alvo = normalizar(cidade)
+    unicos: dict = {}
+    especialidades_do: dict = {}
+    for r in dados["linhas"]:
+        if r["_cidade"] != alvo or (especialidade and r["especialidade"] != especialidade):
+            continue
+        unicos.setdefault(r["registro"], r)
+        especialidades_do.setdefault(r["registro"], []).append(r["especialidade"])
+    if not unicos:
+        return None
+    cartoes = []
+    for registro, r in list(unicos.items())[:MAX_NA_CIDADE]:
+        cartao = _cartao(r)
+        cartao["especialidade"] = ", ".join(dict.fromkeys(especialidades_do[registro]))
+        cartoes.append(cartao)
+    nome_cidade = next(c["nome"] for c in cidades() if c["id"] == alvo)
+    return {"dados_de": dados["dados_de"], "aviso": AVISO, "cidade": nome_cidade,
+            "especialidades": [especialidade] if especialidade else [],
+            "por_cidade": {}, "prestadores": cartoes}
 
 
 def resultado_em_texto(argumentos: dict, resultado: dict) -> str:
@@ -261,7 +337,7 @@ def para_tela(resultado: dict) -> dict | None:
         return None
     return {"dados_de": resultado["dados_de"], "aviso": resultado["aviso"],
             "especialidades": resultado["especialidades"], "por_cidade": resultado["por_cidade"],
-            "prestadores": resultado.get("prestadores", [])}
+            "prestadores": resultado.get("_todos") or resultado.get("prestadores", [])}
 
 
 def resumo(resultado: dict) -> list[str]:
