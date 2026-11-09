@@ -30,5 +30,25 @@
   {
     "pergunta": "onde imprimo a segunda via da autorização no app?",
     "fora": false
+  },
+  {
+    "pergunta": "quero tirar meu contra xeque",
+    "fora": true
+  },
+  {
+    "pergunta": "cade o contraxeque",
+    "fora": true
+  },
+  {
+    "pergunta": "nao achei meu contra-chequi",
+    "fora": true
+  },
+  {
+    "pergunta": "quanto custa a consulta com clinico geral?",
+    "fora": false
+  },
+  {
+    "pergunta": "o plano cobre contraceptivo?",
+    "fora": false
   }
 ]

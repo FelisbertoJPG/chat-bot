@@ -255,14 +255,31 @@ ARQUIVO_FORA = PASTA / "fora_do_escopo.json"
 _fora: dict = {"versao": None, "assuntos": []}
 
 
+MIN_LETRAS_DIGITACAO_FORA = 10
+
+
 def _casa(texto: str, entradas: list[tuple[str, str]]) -> bool:
-    """Alguma entrada (palavra, prefixo* ou expressão) aparece no texto? Sem tolerância a erro de
-    digitação: aqui um falso positivo esconderia uma pergunta que o chatbot sabe responder."""
+    """Alguma entrada (palavra, prefixo* ou expressão) aparece no texto?
+    Erro de digitação só em termos longos (10+ letras, sem contar espaços): "contra xeque" escapou
+    de "contracheque" e o modelo levou 223 s para inventar. Compara também palavras vizinhas
+    juntas ("contra xeque" -> "contraxeque"). Em termo curto, um falso positivo esconderia uma
+    pergunta que o chatbot sabe responder ("folha" pegaria "desconto em folha")."""
     palavras, com_espacos = texto.split(), f" {texto} "
-    return any((tipo == "expressao" and f" {termo} " in com_espacos)
-               or (tipo == "palavra" and termo in palavras)
-               or (tipo == "prefixo" and any(p.startswith(termo) for p in palavras))
-               for tipo, termo in entradas)
+    if any((tipo == "expressao" and f" {termo} " in com_espacos)
+           or (tipo == "palavra" and termo in palavras)
+           or (tipo == "prefixo" and any(p.startswith(termo) for p in palavras))
+           for tipo, termo in entradas):
+        return True
+    janelas = {"".join(palavras[i:i + n]) for n in (1, 2, 3) for i in range(len(palavras) - n + 1)}
+    for tipo, termo in entradas:
+        junto = termo.replace(" ", "")
+        if len(junto) < MIN_LETRAS_DIGITACAO_FORA:
+            continue
+        for j in janelas:
+            alvo = j[:len(junto) + 1] if tipo == "prefixo" else j
+            if difflib.SequenceMatcher(None, alvo, junto).ratio() >= SEMELHANCA_DIGITACAO:
+                return True
+    return False
 
 
 def fora_do_escopo(*textos: str) -> dict | None:
