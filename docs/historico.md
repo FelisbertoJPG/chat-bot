@@ -418,6 +418,26 @@ Polimento da tela, a pedido do autor, testando ao vivo:
   parecidas). O modelo respondeu o prazo certo, mas acrescentou "carência de 10 meses para quem não
   é titular", que estava errado (misturou o Art. 63). Agora sai do texto conferido, em 0 s.
 
+## Profissional pelo nome
+
+"Quero o doutor Fernando", com Análises Clínicas escolhida no quadro da rede, voltou a lista de
+análises clínicas: a ferramenta da rede só procura por especialidade e lugar, e a reescrita (a
+pergunta é curta, parecia continuação) trocou o pedido pelo assunto anterior.
+
+- `rag.pedido_de_nome`: doutor, doutora, dr. ou dra. + nome. Vai direto ao cadastro
+  (`rede.buscar_nome`: cada palavra do nome como começo de uma palavra do nome do prestador),
+  **antes da reescrita e sem modelo** (0,0 s).
+- A página manda o que está escolhido no quadro (`filtro_rede`: cidade e especialidade). Se a
+  pessoa está lá, mostra o contato. Se não está, diz onde não está ("Em Análises Clínicas em Novo
+  Hamburgo não há ninguém com o nome Fernando"; "Não encontrei nenhum profissional com o nome Pinto
+  em Campo Bom. Quer ver em outra cidade?", sugestão do autor), lista quem tem o nome com
+  especialidade e cidade, e oferece botões que abrem a lista certa com a pessoa em primeiro e ⭐.
+- Filtro por bairro agrupado pela forma normalizada: "Hamburgo Velho (116)" juntou "H VELHO", e
+  "Jardim Mauá (26)" juntou "JARDIM MAUA" e "MAUA".
+- Eval da rede com `filtro_rede` por caso e 3 casos do nome (3/3). A régua passou a aceitar
+  cidades ditas na conversa e as mostradas pela busca por nome (texto montado pelo código, a partir
+  do cadastro); antes reprovava como "cidade inventada".
+
 ## v0: Claude via API (`claude_v0.py`)
 
 Versão inicial, antes da decisão de rodar tudo localmente:

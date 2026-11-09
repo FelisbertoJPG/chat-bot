@@ -233,5 +233,71 @@
       "telefones_reais": true,
       "lista_na_tela": true
     }
+  },
+  {
+    "categoria": "Rede: profissional pelo nome",
+    "conversa": [
+      {
+        "pergunta": "Quem atende Analises Clinicas em Novo Hamburgo?",
+        "resposta": "Encontrei 12 de Analises Clinicas em Novo Hamburgo."
+      }
+    ],
+    "pergunta": "quero o doutor fernando",
+    "resposta_esperada": "Busca o nome no cadastro (sem modelo e sem herdar 'análises clínicas' da conversa), lista os Fernandos com especialidade e cidade e pede para escolher a especialidade.",
+    "fontes": "Rede credenciada",
+    "criterios": {
+      "deve_ter": [
+        "fernando",
+        "especialidade"
+      ],
+      "nao_pode_ter": [
+        "\\bp\\. ?[a-z]\\b|codigo [a-z]{2,}-|codigo x\\b"
+      ],
+      "usa_tabela": false,
+      "telefones_reais": true
+    }
+  },
+  {
+    "categoria": "Rede: nome fora da especialidade escolhida",
+    "pergunta": "quero o doutor fernando",
+    "filtro_rede": {
+      "cidade": "novo hamburgo",
+      "especialidade": "ANALISES CLINICAS"
+    },
+    "resposta_esperada": "Diz que em Análises Clínicas não há Fernando, lista os Fernandos com especialidade e pede para escolher.",
+    "fontes": "Rede credenciada",
+    "criterios": {
+      "deve_ter": [
+        "nao ha ninguem",
+        "fernando",
+        "cardiologia"
+      ],
+      "nao_pode_ter": [
+        "\\bp\\. ?[a-z]\\b|codigo [a-z]{2,}-|codigo x\\b"
+      ],
+      "usa_tabela": false,
+      "telefones_reais": true
+    }
+  },
+  {
+    "categoria": "Rede: nome na especialidade escolhida",
+    "pergunta": "quero o doutor fernando",
+    "filtro_rede": {
+      "cidade": "novo hamburgo",
+      "especialidade": "CARDIOLOGIA"
+    },
+    "resposta_esperada": "Mostra o Fernando de Cardiologia de Novo Hamburgo na lista.",
+    "fontes": "Rede credenciada",
+    "criterios": {
+      "deve_ter": [
+        "em cardiologia"
+      ],
+      "nao_pode_ter": [
+        "\\bp\\. ?[a-z]\\b|codigo [a-z]{2,}-|codigo x\\b"
+      ],
+      "usa_tabela": false,
+      "telefones_reais": true,
+      "lista_na_tela": true
+    }
   }
 ]

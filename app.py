@@ -56,8 +56,10 @@ def rede_especialidades():
 @app.get("/api/rede/lista")
 def rede_lista():
     cidade, especialidade = request.args.get("cidade", ""), request.args.get("especialidade") or None
-    registro.registrar({"tipo": "rede_botoes", "cidade": cidade[:100], "especialidade": (especialidade or "")[:100]})
-    return {"lista": rede.lista(cidade, especialidade) if cidade else None}
+    destacar = (request.args.get("destacar") or "")[:60] or None  # nome vindo da busca por nome
+    registro.registrar({"tipo": "rede_botoes", "cidade": cidade[:100], "especialidade": (especialidade or "")[:100],
+                        "destacar": destacar or ""})
+    return {"lista": rede.lista(cidade, especialidade, destacar) if cidade else None}
 
 
 @app.post("/api/registrar")
@@ -88,6 +90,9 @@ def perguntar():
     # Assunto do botão (menu.json): só os conhecidos; qualquer outro valor vira o caminho completo.
     assunto = dados.get("assunto") if dados.get("assunto") in ASSUNTOS else None
     manter = bool(dados.get("manter_assunto"))
+    # O que está escolhido no quadro da rede (cidade, especialidade): a busca por nome usa.
+    filtro = dados.get("filtro_rede") if isinstance(dados.get("filtro_rede"), dict) else {}
+    filtro_rede = {k: str(filtro[k])[:100] for k in ("cidade", "especialidade") if filtro.get(k)}
 
     def eventos():
         # Uma linha JSON por evento (formato NDJSON); a página lê linha a linha. Ao mesmo tempo,
@@ -97,7 +102,7 @@ def perguntar():
         texto, inicio = [], time.time()
         try:
             for evento in responder(pergunta, pensar=bool(dados.get("pensar")), historico=historico,
-                                    assunto=assunto, manter_assunto=manter):
+                                    assunto=assunto, manter_assunto=manter, filtro_rede=filtro_rede):
                 tipo = evento["tipo"]
                 if tipo == "reescrita":
                     linha["reescrita"] = evento["pergunta"]

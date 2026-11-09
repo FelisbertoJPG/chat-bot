@@ -155,6 +155,97 @@ _RE_PEDE_PRESTADOR = re.compile(
     r"(quero|preciso|vou|gostaria de|queria) (marcar|agendar)")
 # Pergunta de valor que cita a cidade ("quanto custa a consulta em NH?") continua sendo da tabela.
 _RE_PEDE_VALOR = re.compile(r"quanto (custa|pago|paga|e|sai)|valor|preco|coparticipa")
+# Pedido de um profissional pelo nome: "quero o doutor Fernando", "dra. Ana Paula em NH". Vai
+# direto ao cadastro (rede.buscar_nome), ANTES da reescrita: curta, essa pergunta parecia
+# continuação, e a reescrita a trocou pelo assunto anterior ("análises clínicas em NH").
+_RE_PEDE_NOME = re.compile(r"\b(dr|dra|doutor|doutora|doutor a)\b\s+(.+)")
+_FIM_DO_NOME = re.compile(r"\s(em|no|na|nos|nas|que|pra|para|perto|por favor|atende|contato|telefone)\b.*")
+
+
+def pedido_de_nome(pergunta: str) -> str | None:
+    """'quero o doutor fernando silva em nh' -> 'fernando silva'; sem título + nome, None."""
+    achou = _RE_PEDE_NOME.search(memoria.normalizar(pergunta))
+    if not achou:
+        return None
+    nome = _FIM_DO_NOME.sub("", f" {achou.group(2)}").strip()
+    palavras = [p for p in nome.split() if len(p) >= 2][:4]
+    return " ".join(palavras) or None
+
+
+MAX_NOMES_NO_TEXTO = 20
+
+
+def _responder_nome(nome: str, pergunta: str, historico: list[dict] | None, inicio: float,
+                    filtro: dict | None = None) -> Iterator[dict]:
+    """Busca pelo nome, sem modelo. filtro: o que está escolhido no quadro da rede
+    ({"cidade": "novo hamburgo", "especialidade": "ANALISES CLINICAS"}).
+    - Alguém com esse nome na especialidade escolhida (ou só um no total): mostra a lista.
+    - Senão: diz que ali não há, lista quem tem o nome e as especialidades, e oferece botões para
+      abrir a lista da especialidade certa com a pessoa em destaque (evento "escolher_especialidade").
+    Antes, com Análises Clínicas escolhida, "quero o doutor Fernando" voltava a lista de análises
+    clínicas (a reescrita trocou o pedido pelo assunto anterior)."""
+    filtro = filtro or {}
+    cidade = rede.cidade_citada(pergunta)
+    for troca in reversed((historico or [])[-MAX_TROCAS_NA_CONVERSA:]):
+        cidade = cidade or rede.cidade_citada(troca.get("pergunta") or "")
+    cidade_id = memoria.normalizar(filtro.get("cidade") or cidade or "") or None
+    lista = rede.buscar_nome(nome, cidade_id)
+    pessoas, nome_bonito = lista["prestadores"], nome.title()
+    especialidade = filtro.get("especialidade") or None
+
+    def fim():
+        return {"tipo": "fim", "origem": "busca_nome", "tempo_total": round(time.time() - inicio, 1)}
+
+    nome_cidade = next((c["nome"] for c in rede.cidades() if c["id"] == cidade_id), cidade_id or "")
+    em_cidade = f" em {rede.bonito(nome_cidade)}" if cidade_id else ""
+    if not pessoas:
+        outra = ", nem em outra cidade da rede credenciada" if cidade_id else " na rede credenciada"
+        yield {"tipo": "texto", "texto": f"Não encontrei nenhum profissional com o nome “{nome_bonito}”"
+                                         f"{em_cidade}{outra}. Confira a grafia (basta o começo do nome) ou "
+                                         "busque pela especialidade."}
+        yield fim()
+        return
+
+    na_cidade = [p for p in pessoas if p["cidade_id"] == cidade_id] if cidade_id else pessoas
+    na_escolha = [p for p in na_cidade if especialidade in p["especialidades"]] if especialidade else []
+    if na_escolha or (not especialidade and len(na_cidade) == 1):
+        lista["prestadores"] = na_escolha or na_cidade
+        onde = (f" em {rede.bonito(especialidade)}" if na_escolha else "") + em_cidade
+        texto = (f"Encontrei {len(lista['prestadores'])} profissional(is) com o nome “{nome_bonito}”{onde}: o "
+                 "contato está na lista abaixo. A rede muda com frequência: confirme por telefone antes de ir.")
+        yield {"tipo": "ferramenta", "nome": "buscar_nome", "argumentos": {"nome": nome},
+               "total": len(lista["prestadores"]), "resumo": [], "lista": lista}
+        yield {"tipo": "texto", "texto": texto}
+        yield fim()
+        return
+
+    # Não está onde a pessoa procurou: diz isso e mostra quem tem o nome, e onde.
+    if cidade_id and not na_cidade:
+        aviso = (f"Não encontrei nenhum profissional com o nome “{nome_bonito}”{em_cidade}. "
+                 "Quer ver em outra cidade? Na rede credenciada, há:\n")
+        pedido = "Escolha abaixo para ver o contato na lista."
+    elif especialidade:
+        aviso = (f"Em {rede.bonito(especialidade)}{em_cidade} não há ninguém com o nome “{nome_bonito}”. "
+                 f"Na rede credenciada, encontrei {len(pessoas)} profissional(is) com esse nome:\n")
+        pedido = "Escolha abaixo a especialidade para ver o contato na lista."
+    else:
+        aviso = f"Encontrei {len(pessoas)} profissional(is) com o nome “{nome_bonito}” na rede credenciada:\n"
+        pedido = "Escolha abaixo a especialidade para ver o contato na lista."
+    linhas = [f"• {rede.bonito(p['nome'])}: {', '.join(rede.bonito(e) for e in p['especialidades'])} "
+              f"({rede.bonito(p['cidade'])})" for p in pessoas[:MAX_NOMES_NO_TEXTO]]
+    if len(pessoas) > MAX_NOMES_NO_TEXTO:
+        linhas.append(f"• e mais {len(pessoas) - MAX_NOMES_NO_TEXTO}")
+    texto = aviso + "\n".join(linhas) + "\n" + pedido
+    grupos: dict[tuple, dict] = {}
+    for p in pessoas:
+        for e in p["especialidades"]:
+            g = grupos.setdefault((e, p["cidade_id"]), {"especialidade": e, "cidade_id": p["cidade_id"],
+                                                         "cidade": p["cidade"], "total": 0})
+            g["total"] += 1
+    opcoes = sorted(grupos.values(), key=lambda g: (g["cidade_id"] != cidade_id, g["especialidade"]))
+    yield {"tipo": "texto", "texto": texto}
+    yield {"tipo": "escolher_especialidade", "nome": nome, "opcoes": opcoes}
+    yield fim()
 # Sem lugar nenhum (nem na pergunta, nem antes na conversa): a lista sai para Novo Hamburgo, onde
 # está a maior parte da rede e de quem pergunta, e a resposta diz para avisar se for outra cidade.
 # Antes o chatbot só contava quantos havia e pedia a cidade: mais uma volta para quem tem pressa.
@@ -406,7 +497,7 @@ def _validada_para_tela(entrada: dict) -> dict:
 
 def responder(pergunta: str, pensar: bool = False, atalhos: bool = True,
               historico: list[dict] | None = None, assunto: str | None = None,
-              manter_assunto: bool = False) -> Iterator[dict]:
+              manter_assunto: bool = False, filtro_rede: dict | None = None) -> Iterator[dict]:
     """atalhos=False pula a resposta validada exata e o cache (nem lê, nem grava): os evals
     usam assim para medir o modelo, e não a memória.
     historico: trocas anteriores da conversa, para entender perguntas de continuação.
@@ -423,6 +514,8 @@ def responder(pergunta: str, pensar: bool = False, atalhos: bool = True,
                                     "ligada": foram junto com os artigos para o modelo)
     {"tipo": "fontes", ...}      -> artigos encontrados pela busca
     {"tipo": "guia", ...}        -> seção do guia do app e do site + links (para a tela)
+    {"tipo": "mudar_assunto"}    -> a pergunta parece de outro assunto (nada é respondido)
+    {"tipo": "escolher_especialidade"} -> busca por nome: especialidades onde a pessoa aparece
     {"tipo": "pensando"}         -> modelo está raciocinando
     {"tipo": "ferramenta", ...}  -> o modelo consultou a tabela ou a rede credenciada ("nome")
     {"tipo": "texto", ...}       -> pedaço da resposta
@@ -430,6 +523,12 @@ def responder(pergunta: str, pensar: bool = False, atalhos: bool = True,
     """
     inicio = time.time()
     original = pergunta
+
+    # Profissional pelo nome: direto ao cadastro, antes da reescrita e sem modelo.
+    nome = pedido_de_nome(pergunta) if rede.disponivel() else None
+    if nome:
+        yield from _responder_nome(nome, pergunta, historico, inicio, filtro_rede)
+        return
 
     # c. Conversa: daqui em diante tudo (memória, cache, busca, resposta) usa a pergunta completa.
     if historico:

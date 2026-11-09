@@ -85,6 +85,7 @@
   .link-guia:hover { background: var(--bg); }
   .prestador { border-top: 1px solid var(--borda); padding: 8px 0; }
   .prestador[hidden] { display: none; }
+  .prestador.destaque { background: var(--usuario); border-radius: 8px; padding: 8px 10px; }
   .chips-bairro { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 4px; }
   .chip-bairro {
     padding: 2px 10px; border: 1px solid var(--borda); border-radius: 999px; background: var(--bg);
@@ -233,20 +234,30 @@ function bonito(texto) {
 const NA_LISTA = 5;
 function cartaoRede(lista, titulo = "") {
   const ps = lista.prestadores;
+  // O mesmo bairro vem com grafias diferentes ("H VELHO", "MAUA", "JARDIM MAUÁ"): agrupa pela forma
+  // normalizada (bairro_id) e mostra a grafia acentuada, ou a mais comum.
+  const idBairro = (p) => p.bairro_id || semAcento(p.bairro || "");
   const bairros = {};
-  ps.forEach((p) => { if (p.bairro) bairros[p.bairro] = (bairros[p.bairro] || 0) + 1; });
+  ps.forEach((p) => {
+    if (!p.bairro) return;
+    const b = bairros[idBairro(p)] = bairros[idBairro(p)] || { total: 0, grafias: {} };
+    b.total++;
+    b.grafias[p.bairro] = (b.grafias[p.bairro] || 0) + 1;
+  });
+  const rotulo = (b) => Object.entries(b.grafias)
+    .sort((x, y) => (semAcento(y[0]) !== y[0].toLowerCase()) - (semAcento(x[0]) !== x[0].toLowerCase()) || y[1] - x[1])[0][0];
   const chips = Object.keys(bairros).length > 1
     ? `<div class="chips-bairro"><button type="button" class="chip-bairro ativo" data-bairro="">Todos os bairros</button>${
-        Object.entries(bairros).sort((a, b) => b[1] - a[1]).map(([b, n]) =>
-          `<button type="button" class="chip-bairro" data-bairro="${escapar(b)}">${escapar(bonito(b))} (${n})</button>`).join("")}</div>` : "";
+        Object.entries(bairros).sort((a, b) => b[1].total - a[1].total).map(([id, b]) =>
+          `<button type="button" class="chip-bairro" data-bairro="${escapar(id)}">${escapar(bonito(rotulo(b)))} (${b.total})</button>`).join("")}</div>` : "";
   const cartoes = ps.map((p, i) => `
-    <div class="prestador" data-bairro-do="${escapar(p.bairro || "")}"${i >= NA_LISTA ? " hidden" : ""}><b>${escapar(p.nome)}</b>${p.local ? ` · ${escapar(p.local)}` : ""}<br>
+    <div class="prestador${p.destaque ? " destaque" : ""}" data-bairro-do="${escapar(p.bairro ? idBairro(p) : "")}"${i >= NA_LISTA ? " hidden" : ""}><b>${p.destaque ? "⭐ " : ""}${escapar(p.nome)}</b>${p.local ? ` · ${escapar(p.local)}` : ""}<br>
     ${escapar(bonito(p.especialidade))}<br>${escapar([p.endereco, p.bairro, p.cidade].filter(Boolean).join(", "))}<br>
     📞 ${escapar(p.telefones.filter((t) => /\d/.test(t)).join(" / ") || "telefone não informado")}</div>`).join("");
   const cidades = Object.entries(lista.por_cidade).map(([c, n]) => `${escapar(bonito(c))} ${n}`).join(" · ");
   const mais = ps.length > NA_LISTA ? `<button type="button" class="ver-todos" data-ver-todos="1">Ver todos os ${ps.length}</button>` : "";
   return `<div class="lista-rede">
-    <b>${titulo || `Rede credenciada: ${escapar(lista.especialidades.map(bonito).join(", "))}`} (dados de ${escapar(lista.dados_de)})</b>
+    <b>${titulo || (lista.titulo ? escapar(lista.titulo) : `Rede credenciada: ${escapar(lista.especialidades.map(bonito).join(", "))}`)} (dados de ${escapar(lista.dados_de)})</b>
     ${ps.length ? "" : `<div class="metricas">Onde há: ${cidades}</div>`}${chips}${cartoes}${mais}
     <div class="metricas">${escapar(lista.aviso)}</div></div>`;
 }
@@ -312,6 +323,7 @@ function botoesAssuntos() {
 
 function telaInicial(texto = "") {
   conversa = [];
+  ultimaBuscaRede = null;
   marcarAssunto(null);
   $("conversa").innerHTML = `<div class="vazio" id="vazio">${texto ? `<p>${escapar(texto)}</p>` : ""}
     <h2>Escolha um assunto para iniciar a conversa</h2>${botoesAssuntos()}</div>`;
@@ -333,6 +345,7 @@ function abrirAssunto(id) {
   const assunto = acharAssunto(id);
   if (!assunto) return;
   registrar({ tipo: "assunto", assunto: id });
+  ultimaBuscaRede = null;
   adicionarMensagem("usuario").innerHTML = `<div class="balao">${escapar(assunto.icone)} ${escapar(assunto.titulo)}</div>`;
   const msg = adicionarMensagem("assistente");
   marcarAssunto(assunto);
@@ -366,6 +379,9 @@ function responderOpcao(id, j) {
 
 // --- Rede credenciada pela página: cidade (obrigatória) + especialidade (opcional), sem modelo --
 let CIDADES = null;
+// Última busca feita no quadro da rede: vai junto com as perguntas, para a busca por nome saber
+// em que especialidade a pessoa está ("quero o doutor Fernando" com Análises Clínicas escolhida).
+let ultimaBuscaRede = null;
 const semAcento = (t) => t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
 async function mostrarFormRede(msg, assunto) {
@@ -433,20 +449,23 @@ async function mostrarFormRede(msg, assunto) {
   rolarParaBaixo();
 }
 
-async function buscarNaRede(cidade, especialidade) {
+async function buscarNaRede(cidade, especialidade, destacar = null) {
+  ultimaBuscaRede = { cidade: cidade.id, especialidade: especialidade || "" };
   const nomeCidade = bonito(cidade.nome);
   const pedido = especialidade ? `${bonito(especialidade)} em ${nomeCidade}` : `Todos os prestadores em ${nomeCidade}`;
   adicionarMensagem("usuario").innerHTML = `<div class="balao">${escapar(pedido)}</div>`;
   const msg = adicionarMensagem("assistente");
   msg.innerHTML = `<div class="balao"><span class="status">Procurando...</span></div>`;
   const url = `api/rede/lista?cidade=${encodeURIComponent(cidade.id)}` +
-              (especialidade ? `&especialidade=${encodeURIComponent(especialidade)}` : "");
+              (especialidade ? `&especialidade=${encodeURIComponent(especialidade)}` : "") +
+              (destacar ? `&destacar=${encodeURIComponent(destacar)}` : "");
   const { lista } = await (await fetch(url)).json();
   if (!lista) { msg.innerHTML = `<div class="balao">Não encontrei ninguém com essa escolha. Tente outra cidade ou especialidade.</div>`; return; }
   const n = lista.prestadores.length;
   const texto = (especialidade
     ? `Encontrei ${n} de ${bonito(especialidade)} em ${nomeCidade}.`
     : `Encontrei ${n} prestadores em ${nomeCidade}. Para ver só uma especialidade, escolha no quadro acima.`) +
+    (destacar ? ` Quem tem o nome “${destacar}” aparece primeiro, com ⭐.` : "") +
     " A rede muda com frequência: confirme por telefone antes de ir.";
   const titulo = especialidade ? "" : `Rede credenciada em ${escapar(nomeCidade)}`;
   msg.innerHTML = `<div class="balao">${escapar(texto)}</div><div class="detalhes">${cartaoRede(lista, titulo)}
@@ -486,8 +505,12 @@ document.addEventListener("click", (e) => {
     atualizarLista(caixa);
     return;
   }
-  const alvo = e.target.closest("[data-assunto], [data-opcao]");
+  const alvo = e.target.closest("[data-assunto], [data-opcao], [data-rede-esp]");
   if (!alvo || ocupado) return;
+  if (alvo.dataset.redeEsp) {
+    buscarNaRede({ id: alvo.dataset.redeCidade, nome: alvo.dataset.redeCidadeNome }, alvo.dataset.redeEsp, alvo.dataset.redeNome);
+    return;
+  }
   if (alvo.dataset.assunto !== undefined) abrirAssunto(alvo.dataset.assunto);
   else {
     const [id, j] = alvo.dataset.opcao.split(":");
@@ -525,7 +548,8 @@ async function perguntar(pergunta, opcoes = {}) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ pergunta, pensar: $("pensar").checked, historico,
-                             assunto: assuntoAtual, manter_assunto: !!opcoes.manter }),
+                             assunto: assuntoAtual, manter_assunto: !!opcoes.manter,
+                             filtro_rede: assuntoAtual === "rede" ? ultimaBuscaRede : null }),
     });
     const leitor = r.body.getReader();
     const decodificador = new TextDecoder();
@@ -542,6 +566,10 @@ async function perguntar(pergunta, opcoes = {}) {
         const ev = JSON.parse(linha);
         if (ev.tipo === "mudar_assunto") {
           troca = ev;
+        } else if (ev.tipo === "escolher_especialidade") {
+          detalhes.insertAdjacentHTML("beforeend", `<div class="opcoes-menu">${ev.opcoes.map((o) =>
+            `<button type="button" class="opcao-menu" data-rede-esp="${escapar(o.especialidade)}" data-rede-cidade="${escapar(o.cidade_id)}"
+              data-rede-cidade-nome="${escapar(o.cidade)}" data-rede-nome="${escapar(ev.nome)}">${escapar(bonito(o.especialidade))} · ${escapar(bonito(o.cidade))} (${o.total})</button>`).join("")}</div>`);
         } else if (ev.tipo === "fontes") {
           status.dataset.base = "Gerando resposta...";
           if (ev.fontes.length) {
@@ -557,7 +585,11 @@ async function perguntar(pergunta, opcoes = {}) {
         } else if (ev.tipo === "ferramenta") {
           const itens = ev.resumo.map((l) => `<div class="fonte">${escapar(l)}</div>`).join("");
           let titulo;
-          if (ev.nome === "consultar_rede") {
+          if (ev.nome === "buscar_nome") {
+            // Busca pelo nome direto no cadastro (sem modelo): só a lista, sem o resumo técnico.
+            if (ev.lista) detalhes.insertAdjacentHTML("beforeend", cartaoRede(ev.lista));
+            continue;
+          } else if (ev.nome === "consultar_rede") {
             status.dataset.base = "Consultou a rede credenciada, gerando resposta...";
             const a = ev.argumentos;
             const onde = [a.bairro, a.cidade].filter(Boolean).join(", ");
@@ -610,6 +642,8 @@ async function perguntar(pergunta, opcoes = {}) {
           let metricas;
           if (ev.origem === "memoria") {
             metricas = `✅ Resposta validada · ${ev.tempo_total}s`;
+          } else if (ev.origem === "busca_nome") {
+            metricas = `⚡ Busca direta no cadastro da rede · ${ev.tempo_total}s`;
           } else if (ev.origem === "cache") {
             metricas = `♻️ Resposta reaproveitada · ${ev.tempo_total}s (a primeira levou ${ev.tempo_original}s)`;
           } else {

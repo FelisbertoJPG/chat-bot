@@ -192,11 +192,53 @@ def _cartao(r: dict) -> dict:
         "local": r["nome_vinculo"] if r["nome_vinculo"] and r["nome_vinculo"] != r["nome_prestador"] else None,
         "especialidade": r["especialidade"],
         "endereco": r["endereco_coml1"], "bairro": r["bairro_coml1"], "cidade": r["cidade_coml1"],
+        # O mesmo bairro aparece com grafias diferentes ("H VELHO", "MAUA", "JARDIM MAUÁ"): o filtro
+        # por bairro da página agrupa por esta forma normalizada.
+        "bairro_id": r["_bairro"],
         "telefones": _telefones(r),
     }
 
 
 # --- Para os botões da página (sem modelo) ---------------------------------------------------
+
+# Busca pelo nome do profissional ("quero o doutor Fernando"): a ferramenta do modelo só procura
+# por especialidade e lugar, e a reescrita transformou esse pedido em "quem atende análises
+# clínicas em Novo Hamburgo?" (assunto da troca anterior). Busca direta no cadastro, sem modelo.
+_NAO_E_NOME = {"de", "da", "do", "das", "dos", "e"}
+
+
+def bonito(texto: str) -> str:
+    """"ORTOPEDIA E TRAUMATOLOGIA" -> "Ortopedia e Traumatologia" (o cadastro vem em maiúsculas)."""
+    minusculas = {"e", "de", "da", "do", "das", "dos", "em"}
+    return " ".join(p if i and p in minusculas else p.capitalize() for i, p in enumerate(texto.lower().split()))
+
+
+def buscar_nome(nome: str, cidade_preferida: str | None = None) -> dict:
+    """Prestadores cujo nome tem todas as palavras pedidas (cada uma como começo de uma palavra do
+    nome: "fern" acha "FERNANDO"). Os da cidade preferida vêm primeiro."""
+    dados = carregar()
+    termos = [t for t in normalizar(nome).split() if t not in _NAO_E_NOME and len(t) >= 2]
+    resultado = {"dados_de": dados["dados_de"] if dados else "", "aviso": AVISO, "especialidades": [],
+                 "por_cidade": {}, "prestadores": [], "titulo": f"Profissionais com o nome “{nome}”"}
+    if dados is None or not termos:
+        return resultado
+    unicos: dict = {}
+    especialidades_do: dict = {}
+    for r in dados["linhas"]:
+        palavras = normalizar(r["nome_prestador"]).split()
+        if all(any(p.startswith(t) for p in palavras) for t in termos):
+            unicos.setdefault(r["registro"], r)
+            especialidades_do.setdefault(r["registro"], []).append(r["especialidade"])
+    alvo = normalizar(cidade_preferida) if cidade_preferida else None
+    ordem = sorted(unicos.items(), key=lambda item: (item[1]["_cidade"] != alvo, item[1]["nome_prestador"]))
+    for registro, r in ordem[:MAX_NA_TELA]:
+        cartao = _cartao(r)
+        cartao["especialidades"] = list(dict.fromkeys(especialidades_do[registro]))
+        cartao["especialidade"] = ", ".join(cartao["especialidades"])
+        cartao["cidade_id"] = r["_cidade"]
+        resultado["prestadores"].append(cartao)
+    return resultado
+
 
 # Busca pela página: cidade obrigatória, especialidade opcional. A cidade é identificada pela forma
 # normalizada ("sao leopoldo"), porque o cadastro tem a mesma cidade com e sem acento.
@@ -234,9 +276,10 @@ def especialidades(cidade: str | None = None) -> list[dict]:
     return sorted(({"nome": n, "total": len(v)} for n, v in por_nome.items()), key=lambda e: e["nome"])
 
 
-def lista(cidade: str, especialidade: str | None = None) -> dict | None:
+def lista(cidade: str, especialidade: str | None = None, destacar: str | None = None) -> dict | None:
     """Os prestadores de uma cidade (e de uma especialidade, se vier), para a tela, sem o modelo.
-    Sem especialidade, cada prestador aparece uma vez, com todas as especialidades dele."""
+    Sem especialidade, cada prestador aparece uma vez, com todas as especialidades dele.
+    destacar: um nome ("fernando"); quem tem esse nome vem primeiro e marcado (busca por nome)."""
     dados = carregar()
     if dados is None:
         return None
@@ -250,10 +293,15 @@ def lista(cidade: str, especialidade: str | None = None) -> dict | None:
         especialidades_do.setdefault(r["registro"], []).append(r["especialidade"])
     if not unicos:
         return None
+    termos = [x for x in normalizar(destacar or "").split() if x not in _NAO_E_NOME and len(x) >= 2]
+    def tem_nome(r):
+        palavras = normalizar(r["nome_prestador"]).split()
+        return bool(termos) and all(any(p.startswith(x) for p in palavras) for x in termos)
     cartoes = []
-    for registro, r in list(unicos.items())[:MAX_NA_CIDADE]:
+    for registro, r in sorted(unicos.items(), key=lambda item: not tem_nome(item[1]))[:MAX_NA_CIDADE]:
         cartao = _cartao(r)
         cartao["especialidade"] = ", ".join(dict.fromkeys(especialidades_do[registro]))
+        cartao["destaque"] = tem_nome(r)
         cartoes.append(cartao)
     nome_cidade = next(c["nome"] for c in cidades() if c["id"] == alvo)
     return {"dados_de": dados["dados_de"], "aviso": AVISO, "cidade": nome_cidade,

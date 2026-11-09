@@ -121,11 +121,13 @@ def rodar(indices: list[int], pensar: bool) -> list[dict]:
         p = perguntas[n - 1]
         inicio = time.time()
         texto, fontes, termos, ferramentas, fim, alerta, na_tela = [], [], [], [], {}, False, 0
+        cidades_do_cadastro = []  # busca por nome: o texto é montado pelo código, com as cidades do cadastro
         args_rede = []
         # "conversa" (opcional): trocas anteriores, como a página manda em historico.
         # "assunto" (opcional, ou --assunto para todas): o botão de assunto escolhido na página.
         for ev in responder(p["pergunta"], pensar=pensar, atalhos=False, historico=p.get("conversa"),
-                            assunto=p.get("assunto") or ASSUNTO, manter_assunto=True):
+                            assunto=p.get("assunto") or ASSUNTO, manter_assunto=True,
+                            filtro_rede=p.get("filtro_rede")):
             if ev["tipo"] == "texto":
                 texto.append(ev["texto"])
             elif ev["tipo"] == "fontes":
@@ -136,11 +138,14 @@ def rodar(indices: list[int], pensar: bool) -> list[dict]:
                     args_rede.append({k: v for k, v in ev["argumentos"].items()
                                       if k in ("especialidade", "cidade", "bairro")})
                 if ev.get("lista"):
+                    cidades_do_cadastro += [x["cidade"] for x in ev["lista"]["prestadores"]]
                     na_tela = len(ev["lista"]["prestadores"])
                 if ev["nome"] == "consultar_tabela":
                     termos.append(ev["argumentos"].get("termo", ""))
             elif ev["tipo"] == "guia":
                 ferramentas.append("guia")  # não é ferramenta, mas a régua confere igual (usa_guia)
+            elif ev["tipo"] == "escolher_especialidade":
+                cidades_do_cadastro += [o["cidade"] for o in ev["opcoes"]]
             elif ev["tipo"] == "alerta":
                 alerta = True
             elif ev["tipo"] == "fim":
@@ -151,7 +156,10 @@ def rodar(indices: list[int], pensar: bool) -> list[dict]:
              "fontes": fontes, "termos_tabela": termos, "ferramentas": ferramentas, "alerta": alerta,
              "args_rede": args_rede, "segundos": round(time.time() - inicio, 1),
              "tokens_por_segundo": fim.get("tokens_por_segundo", 0),
-             **corrigir(resposta, p["criterios"], bool(termos), ferramentas, p["pergunta"], args_rede)}
+             # Cidades ditas na conversa também valem (a resposta pode usá-las sem inventar).
+             **corrigir(resposta, p["criterios"], bool(termos), ferramentas,
+                        " ".join([p["pergunta"]] + [c["pergunta"] for c in p.get("conversa", [])]
+                                 + [sem_acento(c) for c in cidades_do_cadastro]), args_rede)}
         if "alerta" in p["criterios"] and p["criterios"]["alerta"] != alerta:
             r["nota"] = "ERRO"
             r["proibido"].append("alerta de emergência " + ("faltou" if p["criterios"]["alerta"] else "sobrando"))
