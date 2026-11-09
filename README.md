@@ -103,7 +103,9 @@ flowchart LR
     funcionalidades (menu e passos; o guia fica fora do Git, veja "Como rodar"), e os links do
     app (Android e iPhone) e do site aparecem na tela, montados pelo código. O guia tem busca
     própria, separada da dos artigos, para não tirar um artigo certo do prompt, e só entra quando
-    a pergunta fala do assunto (app, autorização, senha...) e é parecida o bastante com uma seção.
+    a pergunta fala do assunto e é parecida o bastante com uma seção. As palavras do assunto
+    ficam em `vocabulario.json`, por bloco ("Autorização": autoriz*, ordem, guia...): quando alguém
+    pergunta de um jeito novo, basta acrescentar a palavra lá, sem mexer no código.
 
 ## Resultados
 

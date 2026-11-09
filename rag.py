@@ -334,7 +334,7 @@ def impressao_digital() -> str:
     h = hashlib.sha256(memoria.versao_memoria().encode())
     for arquivo in ARQUIVOS_CODIGO:
         h.update(arquivo.read_bytes())
-    for arquivo in (ARQUIVO_INDICE, ARQUIVO_TABELA, rede.ARQUIVO, guia.ARQUIVO):
+    for arquivo in (ARQUIVO_INDICE, ARQUIVO_TABELA, rede.ARQUIVO, guia.ARQUIVO, guia.ARQUIVO_VOCABULARIO):
         if not arquivo.exists():  # a rede é opcional
             continue
         info = arquivo.stat()

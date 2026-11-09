@@ -341,6 +341,17 @@ lista (`PALAVRAS_ASSUNTO`: autorização, carteirinha, cancelar, extrato...) e, 
 (semelhança >= 0,85: letra trocada, faltando ou sobrando), conta. Nenhuma das 34 perguntas de fora
 mudou; com 2 casos de digitação no eval, 25/27.
 
+**O vocabulário vira arquivo.** "Por onde tiro ordem médica?" também ficou sem o guia: muita gente
+chama a autorização de "ordem" (o próprio sistema fala em "reimpressão de ordens"), e a palavra
+não estava na lista. Em vez de mais uma palavra escondida no código, as palavras do assunto saíram
+da expressão regular do `guia.py` para o `vocabulario.json`, em blocos ("Autorização", "Cancelar
+autorização", "Carteirinha"...), com três jeitos de escrever: palavra exata (`ordem`), começo de
+palavra (`cancel*`) e expressão (`segunda via`). O autor acrescenta a palavra no bloco certo e já
+vale, sem reiniciar; JSON quebrado não derruba o chat (avisa no log e fica a versão anterior). A
+troca foi conferida antes de qualquer palavra nova: nas 98 perguntas dos evals e testes, o arquivo
+deu exatamente o mesmo resultado da regex (0 diferenças). Com "ordem" e "ordens" em Autorização e
+2 casos novos no eval, 27/29, e as 34 de fora continuam iguais.
+
 ## v0: Claude via API (`claude_v0.py`)
 
 Versão inicial, antes da decisão de rodar tudo localmente:

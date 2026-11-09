@@ -186,5 +186,19 @@
       12,
       16
     ]
+  },
+  {
+    "pergunta": "por onde tiro ordem medica?",
+    "secoes": [
+      3,
+      16
+    ]
+  },
+  {
+    "pergunta": "preciso de uma ordem pro dentista",
+    "secoes": [
+      4,
+      16
+    ]
   }
 ]

@@ -42,14 +42,11 @@ FONTE_CITACAO = "Guia do app e do site"
 # ou não fala, e a nota precisa passar de LIMIAR_SEM_ASSUNTO.
 LIMIAR = 0.45  # com palavra do assunto, a palavra é a pista forte; a nota escolhe a seção
 LIMIAR_SEM_ASSUNTO = 0.70
-_RE_ASSUNTO = re.compile(
-    r"\bapp\b|aplicativo|\bsite\b|portal|internet|online|autoriza|\bguias?\b|senha|login|"
-    r"carteirinha|cancel|\bexcluir|segunda via|2a via|imprim|reimpr|extrato|informe|imposto|irpf|"
-    r"comprovante|rendimento|acessar|\bacesso\b|cadastr|emitir|emiti|negad|liber|"
-    r"\bfoto\b|token|historico|quanto (eu )?paguei|"
-    # "Marcar" só como pedido: "já posso marcar consulta?" é regra (carência). Com "marcar" solto,
-    # essa pergunta trouxe a seção de carência do app e o modelo inventou "carência de 12 meses".
-    r"(quero|preciso|vou|gostaria de|queria|como) (marcar|agendar)")
+# As palavras do assunto ficam em vocabulario.json (editado à mão, como o memoria.md): é lá que se
+# acrescenta, por exemplo, "ordem" em Autorização quando alguém pergunta de um jeito novo.
+# ("Marcar" só como pedido, "quero marcar": "já posso marcar consulta?" é regra de carência, e com
+# a seção de carência do app o modelo inventou "carência de 12 meses".)
+ARQUIVO_VOCABULARIO = PASTA / "vocabulario.json"
 
 # A seção 1 (Visão geral) é uma tabela que só resume as outras: cada linha é o nome de uma
 # função, e ela ganhava das seções que explicam o passo a passo.
@@ -183,24 +180,74 @@ def ranking(pergunta: str) -> list[dict]:
             for i, (n, p) in sorted(melhor.items(), key=lambda par: -par[1][0])]
 
 
-# Erro de digitação: quem tem pressa escreve "autroização", "carterinha". A regex não pega, a
-# seção certa vinha com nota 0,649 e ficava de fora (sem palavra do assunto, o limiar é 0,70).
-# Cada palavra longa da pergunta é comparada com estas; parecida o bastante (letra trocada,
-# faltando ou sobrando) conta como a palavra certa.
-PALAVRAS_ASSUNTO = [
-    "autorizacao", "autorizacoes", "autorizar", "aplicativo", "carteirinha", "cancelar",
-    "cancelamento", "excluir", "extrato", "comprovante", "rendimentos", "historico", "imprimir",
-    "reimprimir", "cadastro", "emitir", "negado", "negada", "liberar", "liberacao", "senha",
-]
+# Erro de digitação: quem tem pressa escreve "autroização", "carterinha". Sem isso a seção certa
+# vinha com nota 0,649 e ficava de fora (sem palavra do assunto, o limiar é 0,70). Palavra da
+# pergunta parecida o bastante com uma entrada do vocabulário (letra trocada, faltando ou
+# sobrando) conta como ela. Na prática só vale para entradas de 7 letras ou mais: em palavras
+# mais curtas, 0,85 de semelhança só aceita a palavra igual.
 SEMELHANCA_DIGITACAO = 0.85
+_vocabulario: dict = {"versao": None, "blocos": {}}
+
+
+def _ler_entrada(entrada: str) -> tuple[str, str] | None:
+    """'cancel*' -> ('prefixo', 'cancel'); 'segunda via' -> ('expressao', ...); 'ordem' -> ('palavra', ...)."""
+    prefixo = entrada.strip().endswith("*")
+    termo = normalizar(entrada.strip().rstrip("*"))
+    if not termo:
+        return None
+    if " " in termo:
+        return ("expressao", termo)
+    return ("prefixo" if prefixo else "palavra", termo)
+
+
+def vocabulario() -> dict[str, list[tuple[str, str]]]:
+    """Os blocos de vocabulario.json, relidos quando o arquivo muda. Arquivo com erro (vírgula
+    faltando, por exemplo): avisa no log e continua com a última versão boa, sem derrubar o chat."""
+    try:
+        versao = ARQUIVO_VOCABULARIO.stat().st_mtime_ns
+    except FileNotFoundError:
+        return {}
+    if versao != _vocabulario["versao"]:
+        _vocabulario["versao"] = versao
+        try:
+            dados = json.loads(ARQUIVO_VOCABULARIO.read_text(encoding="utf-8"))
+            _vocabulario["blocos"] = {
+                nome: [e for e in map(_ler_entrada, entradas) if e]
+                for nome, entradas in dados.items() if not nome.startswith("_")
+            }
+        except (ValueError, AttributeError, TypeError) as erro:
+            print(f"[guia] {ARQUIVO_VOCABULARIO.name} com erro, usando a versão anterior: {erro}",
+                  file=sys.stderr)
+    return _vocabulario["blocos"]
+
+
+def _parecida(palavra: str, termo: str) -> bool:
+    return (len(termo) >= 5 and len(palavra) >= 5
+            and difflib.SequenceMatcher(None, palavra, termo).ratio() >= SEMELHANCA_DIGITACAO)
+
+
+def assunto(pergunta: str) -> str | None:
+    """O bloco do vocabulário de que a pergunta fala ("Autorização"), ou None."""
+    texto = normalizar(pergunta)
+    palavras, com_espacos = texto.split(), f" {texto} "
+    blocos = vocabulario()
+    for nome, entradas in blocos.items():
+        for tipo, termo in entradas:
+            if ((tipo == "expressao" and f" {termo} " in com_espacos)
+                    or (tipo == "palavra" and termo in palavras)
+                    or (tipo == "prefixo" and any(p.startswith(termo) for p in palavras))):
+                return nome
+    for nome, entradas in blocos.items():  # segunda volta: erro de digitação
+        for tipo, termo in entradas:
+            if tipo == "palavra" and any(_parecida(p, termo) for p in palavras):
+                return nome
+            if tipo == "prefixo" and any(_parecida(p[:len(termo)], termo) for p in palavras):
+                return nome
+    return None
 
 
 def fala_do_assunto(pergunta: str) -> bool:
-    texto = normalizar(pergunta)
-    if _RE_ASSUNTO.search(texto):
-        return True
-    return any(difflib.get_close_matches(p, PALAVRAS_ASSUNTO, n=1, cutoff=SEMELHANCA_DIGITACAO)
-               for p in texto.split() if len(p) >= 5)
+    return assunto(pergunta) is not None
 
 
 def passa(pergunta: str, nota: float) -> bool:
@@ -257,10 +304,18 @@ if __name__ == "__main__":
     if sys.argv[1] == "indexar":
         indexar()
         sys.exit(0)
+    if sys.argv[1] == "vocabulario":
+        # Confere o vocabulario.json: um JSON quebrado para aqui, com a linha do erro.
+        json.loads(ARQUIVO_VOCABULARIO.read_text(encoding="utf-8"))
+        for nome, entradas in vocabulario().items():
+            print(f"{nome} ({len(entradas)}): " + ", ".join(
+                {"prefixo": f"{t}*", "expressao": f'"{t}"', "palavra": t}[tipo] for tipo, t in entradas))
+        sys.exit(0)
     pergunta = " ".join(sys.argv[1:])
     for i, s in enumerate(ranking(pergunta)[:3]):
         marca = "->" if i == 0 and passa(pergunta, s["similaridade"]) else "  "
         print(f"{marca} {s['similaridade']:.3f}  {s['id']}: {s['titulo']}\n      pedaço: {s['pedaco'][:150]}")
-    limiar = LIMIAR if fala_do_assunto(pergunta) else LIMIAR_SEM_ASSUNTO
-    print(f"\n(fala do assunto do guia: {'sim' if fala_do_assunto(pergunta) else 'não'}; limiar {limiar}. "
+    bloco = assunto(pergunta)
+    limiar = LIMIAR if bloco else LIMIAR_SEM_ASSUNTO
+    print(f"\n(fala do assunto do guia: {'sim, bloco ' + repr(bloco) if bloco else 'não'}; limiar {limiar}. "
           "Só a seção marcada com -> vai para o modelo)")

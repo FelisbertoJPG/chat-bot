@@ -1,0 +1,29 @@
+{
+  "_leia_me": [
+    "Palavras que mostram que a pergunta é sobre algo que o segurado faz no app ou no site.",
+    "Se a pergunta tem uma delas, a seção do guia entra com nota a partir de 0,45; sem nenhuma, só com 0,70 (guia.py).",
+    "Cada bloco é um assunto; o nome do bloco é só um rótulo (aparece no 'python guia.py \"pergunta\"').",
+    "Três jeitos de escrever uma entrada:",
+    "  \"ordem\"         palavra exata (ordem, Ordem, ORDEM; acento não importa)",
+    "  \"cancel*\"       começo de palavra: cancelar, cancelamento, cancelado...",
+    "  \"segunda via\"   expressão: as palavras juntas, nessa ordem",
+    "Erro de digitação (letra trocada, faltando ou sobrando) conta, em palavras com 5 letras ou mais.",
+    "Cuidado com palavra de regra: 'marcar' sozinho puxava o guia em 'já posso marcar consulta?' (carência); por isso só 'quero marcar', 'preciso marcar'...",
+    "Salvou, já vale (não precisa reiniciar). Para conferir o arquivo: python guia.py vocabulario",
+    "Mudou alguma coisa? Rode python avaliar_guia.py para ver se nenhuma pergunta de regra passou a puxar o guia."
+  ],
+  "App e site": ["app", "aplicativo*", "site", "portal*", "internet*", "online*"],
+  "Autorização": ["autoriz*", "ordem", "ordens", "guia", "guias", "emiti*"],
+  "Cancelar autorização": ["cancel*", "excluir"],
+  "Segunda via e impressão": ["segunda via", "2a via", "imprim*", "reimpr*"],
+  "Carteirinha": ["carteirinha*", "token*", "foto"],
+  "Senha e acesso": ["senha*", "login*", "acessar*", "acesso"],
+  "Extratos e imposto de renda": ["extrato*", "informe*", "imposto*", "irpf", "comprovante*",
+                                  "rendimento*", "quanto paguei", "quanto eu paguei"],
+  "Exame negado ou liberado": ["negad*", "liber*"],
+  "Histórico": ["historico*"],
+  "Cadastro": ["cadastr*"],
+  "Marcar consulta": ["quero marcar", "preciso marcar", "vou marcar", "gostaria de marcar",
+                      "queria marcar", "como marcar", "quero agendar", "preciso agendar",
+                      "vou agendar", "gostaria de agendar", "queria agendar", "como agendar"]
+}
